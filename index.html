@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ma Watchlist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Nunito:wght@300;400;600&display=swap">
+<style>
+:root {
+  --bg: #3a3d28;
+  --surface: rgba(30,28,20,0.72);
+  --border: rgba(255,200,140,0.15);
+  --cream: #f2e8d8;
+  --muted: #b8a888;
+  --orange: #e07838;
+  --violet: #9a8ac8;
+  --green: #5a8e5a;
+  --red: #c05858;
+  --gold: #c8a840;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 300;
+  color: var(--cream);
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(20,18,12,0.58), rgba(20,18,12,0.58)),
+    url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=1600&q=80');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; border: none; background: none; color: inherit; font-family: inherit; font-size: inherit; }
+
+/* PWA banner */
+#pwa-banner {
+  position: fixed; bottom: 1rem; right: 1rem; z-index: 100;
+  background: var(--surface); border: 1px solid var(--border);
+  backdrop-filter: blur(10px); padding: .6rem 1rem;
+  border-radius: 8px; font-size: .8rem; color: var(--muted);
+  display: flex; align-items: center; gap: .75rem;
+}
+#pwa-banner button {
+  background: var(--orange); color: #fff; padding: .3rem .7rem;
+  border-radius: 4px; font-size: .75rem; font-weight: 600;
+}
+#pwa-dismiss { background: none !important; color: var(--muted) !important; padding: 0 !important; }
+
+/* Tabs */
+.tabs-nav {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; justify-content: center; gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(to bottom, rgba(20,18,12,0.9) 60%, transparent);
+}
+.tab-btn {
+  font-family: 'Nunito', sans-serif; font-weight: 600;
+  font-size: .8rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); padding: .4rem 1.2rem;
+  border-bottom: 2px solid transparent;
+  transition: color .2s, border-color .2s;
+}
+.tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
+
+/* Layout */
+.tab-content { display: none; max-width: 820px; margin: 0 auto; padding: 0 1rem 4rem; }
+.tab-content.active { display: block; }
+
+/* Films header */
+.wl-header { text-align: center; padding: 1.5rem 0 2rem; }
+.wl-header h1 { font-family: 'EB Garamond', serif; font-size: 2.2rem; color: var(--cream); }
+.wl-header p { color: var(--muted); font-size: .85rem; letter-spacing: .1em; margin-top: .3rem; }
+.stats { display: flex; justify-content: center; gap: 1.5rem; margin-top: 1rem; }
+.stat { font-size: .78rem; color: var(--muted); letter-spacing: .05em; }
+.stat strong { color: var(--cream); font-weight: 600; }
+
+/* Category */
+.category {
+  background: var(--surface); border: 1px solid var(--border);
+  backdrop-filter: blur(8px); border-radius: 10px;
+  margin-bottom: .75rem; overflow: hidden;
+}
+.cat-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .75rem 1rem; cursor: pointer;
+  user-select: none; transition: background .15s;
+}
+.cat-header:hover { background: rgba(224,120,56,0.07); }
+.cat-header-left { display: flex; align-items: center; gap: .75rem; }
+.cat-label {
+  font-family: 'Nunito', sans-serif; font-weight: 600;
+  font-size: .75rem; letter-spacing: .12em; color: var(--cream);
+}
+.cat-count { font-size: .72rem; color: var(--muted); }
+.cat-chevron { color: var(--muted); font-size: .8rem; transition: transform .2s; }
+.category.open .cat-chevron { transform: rotate(90deg); }
+
+.cat-body { display: none; }
+.category.open .cat-body { display: block; }
+
+/* Suggestions separator */
+.sugg-sep {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .5rem 1rem; margin: 0;
+  font-size: .65rem; letter-spacing: .12em; color: var(--muted);
+  text-transform: uppercase;
+}
+.sugg-sep::before, .sugg-sep::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* Film row */
+.film-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: .5rem;
+  padding: .45rem 1rem;
+  border-top: 1px solid var(--border);
+  transition: background .15s;
+  position: relative;
+}
+.film-item:hover { background: rgba(224,120,56,0.06); }
+.film-item.highlighted { border-left: 3px solid var(--orange); padding-left: calc(1rem - 3px); }
+.film-item.seen .film-title { text-decoration: line-through; opacity: .5; }
+.film-item.seen { opacity: .55; }
+
+.seen-btn {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid var(--muted); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .65rem; transition: all .2s;
+}
+.film-item.seen .seen-btn {
+  background: var(--green); border-color: var(--green); color: #fff;
+}
+
+.film-info { min-width: 0; }
+.film-title {
+  font-family: 'EB Garamond', serif; font-style: italic;
+  font-size: 1rem; line-height: 1.2; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.film-director { font-size: .72rem; color: var(--muted); margin-top: .05rem; }
+
+.film-meta { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
+.film-year { font-size: .72rem; color: var(--muted); }
+.badge {
+  font-size: .6rem; font-weight: 600; letter-spacing: .06em;
+  padding: .15rem .4rem; border-radius: 3px; text-transform: uppercase;
+}
+.badge-must { background: rgba(200,168,64,0.2); color: var(--gold); border: 1px solid rgba(200,168,64,0.3); }
+.badge-sugg { background: rgba(154,138,200,0.15); color: var(--violet); border: 1px solid rgba(154,138,200,0.25); }
+
+.actions {
+  display: flex; align-items: center; gap: .15rem;
+  opacity: 0; transition: opacity .15s;
+}
+.film-item:hover .actions { opacity: 1; }
+.act-btn {
+  width: 24px; height: 24px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; color: var(--muted);
+  transition: color .15s, background .15s;
+}
+.act-btn:hover { color: var(--cream); background: rgba(255,255,255,0.08); }
+.act-btn.hl-active { color: var(--orange); }
+.act-btn.must-active { color: var(--gold); }
+.act-btn.del { color: var(--muted); }
+.act-btn.del:hover { color: var(--red); }
+
+/* Loading spinner on replace */
+.act-btn.loading { pointer-events: none; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Add form */
+.add-form {
+  display: none; padding: .5rem 1rem .75rem;
+  border-top: 1px solid var(--border);
+  gap: .4rem; flex-wrap: wrap; align-items: center;
+}
+.add-form.visible { display: flex; }
+.add-form input {
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--cream); font-family: 'Nunito', sans-serif;
+  font-size: .8rem; padding: .3rem .6rem; outline: none;
+}
+.add-form input:focus { border-color: var(--orange); }
+.add-form input::placeholder { color: var(--muted); }
+.add-form .inp-title { flex: 2; min-width: 130px; }
+.add-form .inp-dir { flex: 1.5; min-width: 110px; }
+.add-form .inp-year { width: 70px; }
+.add-form .btn-submit {
+  background: var(--orange); color: #fff; font-weight: 600;
+  font-size: .75rem; padding: .3rem .7rem; border-radius: 5px;
+}
+.add-form .btn-cancel { font-size: .75rem; color: var(--muted); padding: .3rem .5rem; }
+
+.add-trigger {
+  display: flex; align-items: center; gap: .4rem;
+  width: 100%; padding: .5rem 1rem;
+  font-size: .75rem; color: var(--muted);
+  border-top: 1px solid var(--border);
+  transition: color .15s;
+  cursor: pointer;
+}
+.add-trigger:hover { color: var(--orange); }
+
+/* Series */
+.series-section {
+  background: var(--surface); border: 1px solid var(--border);
+  backdrop-filter: blur(8px); border-radius: 10px;
+  margin-bottom: 1rem; overflow: hidden;
+}
+.section-header {
+  padding: .75rem 1rem;
+  font-family: 'Nunito', sans-serif; font-weight: 600;
+  font-size: .75rem; letter-spacing: .12em; color: var(--cream);
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.section-count { font-size: .72rem; color: var(--muted); font-weight: 300; }
+
+.serie-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: .5rem;
+  padding: .45rem 1rem;
+  border-top: 1px solid var(--border);
+  transition: background .15s;
+}
+.serie-item:hover { background: rgba(224,120,56,0.06); }
+.serie-item.done { opacity: .5; }
+.serie-item.done .serie-title { text-decoration: line-through; }
+.serie-item.highlighted { border-left: 3px solid var(--orange); padding-left: calc(1rem - 3px); }
+
+.serie-title { font-family: 'EB Garamond', serif; font-style: italic; font-size: 1rem; }
+.serie-year { font-size: .72rem; color: var(--muted); }
+
+/* Series tab header */
+.series-header { text-align: center; padding: 1.5rem 0 1.5rem; }
+.series-header h2 { font-family: 'EB Garamond', serif; font-size: 1.8rem; }
+.series-header p { color: var(--muted); font-size: .85rem; margin-top: .3rem; }
+</style>
+</head>
+<body>
+
+<div id="pwa-banner" hidden>
+  Installer l'app
+  <button id="pwa-install">Installer</button>
+  <button id="pwa-dismiss" class="act-btn">✕</button>
+</div>
+
+<nav class="tabs-nav">
+  <button class="tab-btn active" data-tab="films">Films</button>
+  <button class="tab-btn" data-tab="series">Séries</button>
+</nav>
+
+<div id="films-tab" class="tab-content active">
+  <div class="wl-header">
+    <h1>Ma Watchlist</h1>
+    <p>Cinéma &middot; Collection personnelle</p>
+    <div class="stats">
+      <div class="stat"><strong id="stat-total">0</strong> films</div>
+      <div class="stat"><strong id="stat-seen">0</strong> vus</div>
+      <div class="stat"><strong id="stat-left">0</strong> à voir</div>
+    </div>
+  </div>
+  <div id="cats-container"></div>
+</div>
+
+<div id="series-tab" class="tab-content">
+  <div class="series-header">
+    <h2>Mes Séries</h2>
+    <p>Séries &middot; Collection personnelle</p>
+  </div>
+  <div id="series-container"></div>
+</div>
+
+<script>
+/* ===================== DATA ===================== */
+const CATEGORIES = [
+  { id: 'drame', label: 'DRAME', films: [
+    {t:'Mystic River',d:'Clint Eastwood',y:2003},
+    {t:"Sophie's Choice",d:'Alan J. Pakula',y:1982},
+    {t:'De rouille et d\'os',d:'Jacques Audiard',y:2012},
+    {t:'Il reste encore demain',d:'Paola Cortellesi',y:2023},
+    {t:'Stand by Me',d:'Rob Reiner',y:1986},
+    {t:'Gilbert Grape',d:'Lasse Hallström',y:1993},
+    {t:'Vol au-dessus d\'un nid de coucou',d:'Miloš Forman',y:1975},
+    {t:'La Route de Madison',d:'Clint Eastwood',y:1995},
+    {t:'La Couleur pourpre',d:'Steven Spielberg',y:1985},
+    {t:'Beignets de tomates vertes',d:'Jon Avnet',y:1991},
+    {t:"L'Odeur de la papaye verte",d:'Tran Anh Hung',y:1993},
+    {t:'All of Us Strangers',d:'Andrew Haigh',y:2023},
+    {t:'Tyrannosaur',d:'Paddy Considine',y:2011},
+    {t:'Lost in Translation',d:'Sofia Coppola',y:2003},
+    {t:'Aftersun',d:'Charlotte Wells',y:2022},
+    {t:'Blue Valentine',d:'Derek Cianfrance',y:2010},
+    {t:'The Tree of Life',d:'Terrence Malick',y:2011}
+  ], suggestions: [
+    {t:'Manchester by the Sea',d:'Kenneth Lonergan',y:2016,type:'must'},
+    {t:'Yi Yi',d:'Edward Yang',y:2000,type:'must'},
+    {t:'Short Cuts',d:'Robert Altman',y:1993,type:'must'},
+    {t:'Petite Maman',d:'Céline Sciamma',y:2021,type:'new'},
+    {t:'Caché',d:'Michael Haneke',y:2005,type:'must'},
+    {t:'Les Nuits de Mashhad',d:'Ali Abbasi',y:2022,type:'new'},
+    {t:'Moonlight',d:'Barry Jenkins',y:2016,type:'must'},
+    {t:'Portrait de la jeune fille en feu',d:'Céline Sciamma',y:2019,type:'new'},
+    {t:'In the Mood for Love',d:'Wong Kar-wai',y:2000,type:'must'},
+    {t:'Minari',d:'Lee Isaac Chung',y:2020,type:'new'}
+  ]},
+  { id: 'crime', label: 'CRIME', films: [
+    {t:'Taxi Driver',d:'Martin Scorsese',y:1976},
+    {t:'Chinatown',d:'Roman Polanski',y:1974},
+    {t:'Les Affranchis',d:'Martin Scorsese',y:1990},
+    {t:'Casino',d:'Martin Scorsese',y:1995},
+    {t:'Reservoir Dogs',d:'Quentin Tarantino',y:1992},
+    {t:'No Country for Old Men',d:'Joel & Ethan Coen',y:2007},
+    {t:'A History of Violence',d:'David Cronenberg',y:2005},
+    {t:'Les Promesses de l\'ombre',d:'David Cronenberg',y:2007},
+    {t:'Lord of War',d:'Andrew Niccol',y:2005},
+    {t:'Legend',d:'Brian Helgeland',y:2015},
+    {t:'Klute',d:'Alan J. Pakula',y:1971},
+    {t:'Dans la chaleur de la nuit',d:'Norman Jewison',y:1967},
+    {t:'Zodiac',d:'David Fincher',y:2007},
+    {t:'La Nuit du chasseur',d:'Charles Laughton',y:1955},
+    {t:'Le Silence des agneaux',d:'Jonathan Demme',y:1991},
+    {t:'There Will Be Blood',d:'Paul Thomas Anderson',y:2007},
+    {t:'Une bataille après l\'autre',d:'Guy Ritchie',y:2024},
+    {t:'Uncut Gems',d:'Josh & Benny Safdie',y:2019},
+    {t:'Decision to Leave',d:'Park Chan-wook',y:2022}
+  ], suggestions: [
+    {t:'Heat',d:'Michael Mann',y:1995,type:'must'},
+    {t:'Memories of Murder',d:'Bong Joon-ho',y:2003,type:'must'},
+    {t:'Prisoners',d:'Denis Villeneuve',y:2013,type:'new'},
+    {t:'Sicario',d:'Denis Villeneuve',y:2015,type:'new'},
+    {t:'True Romance',d:'Tony Scott',y:1993,type:'must'},
+    {t:'Blood Simple',d:'Joel Coen',y:1984,type:'must'},
+    {t:'Drive',d:'Nicolas Winding Refn',y:2011,type:'new'},
+    {t:'L.A. Confidential',d:'Curtis Hanson',y:1997,type:'must'},
+    {t:'Nightcrawler',d:'Dan Gilroy',y:2014,type:'new'},
+    {t:'Gone Girl',d:'David Fincher',y:2014,type:'new'}
+  ]},
+  { id: 'horreur', label: 'HORREUR', films: [
+    {t:'Psychose',d:'Alfred Hitchcock',y:1960},
+    {t:'Alien',d:'Ridley Scott',y:1979},
+    {t:'28 jours plus tard',d:'Danny Boyle',y:2002},
+    {t:'The Lighthouse',d:'Robert Eggers',y:2019},
+    {t:'The Wailing',d:'Na Hong-jin',y:2016},
+    {t:'It Comes at Night',d:'Trey Edward Shults',y:2017},
+    {t:'Color Out of Space',d:'Richard Stanley',y:2019},
+    {t:'Crimson Peak',d:'Guillermo del Toro',y:2015},
+    {t:'Infinity Pool',d:'Brandon Cronenberg',y:2023},
+    {t:'Mad God',d:'Phil Tippett',y:2021},
+    {t:'Vincent doit mourir',d:'Stéphan Castang',y:2023}
+  ], suggestions: [
+    {t:'Possession',d:'Andrzej Żuławski',y:1981,type:'must'},
+    {t:'Annihilation',d:'Alex Garland',y:2018,type:'new'},
+    {t:'Hereditary',d:'Ari Aster',y:2018,type:'new'},
+    {t:'Suspiria',d:'Luca Guadagnino',y:2018,type:'new'},
+    {t:'The House That Jack Built',d:'Lars von Trier',y:2018,type:'new'},
+    {t:'Midsommar',d:'Ari Aster',y:2019,type:'new'},
+    {t:'The Witch',d:'Robert Eggers',y:2015,type:'new'},
+    {t:'Raw',d:'Julia Ducournau',y:2016,type:'new'},
+    {t:'Titane',d:'Julia Ducournau',y:2021,type:'new'},
+    {t:'Under the Shadow',d:'Babak Anvari',y:2016,type:'new'}
+  ]},
+  { id: 'etrange', label: 'ETRANGE / PSYCHOLOGIQUE', films: [
+    {t:'Mulholland Drive',d:'David Lynch',y:2001},
+    {t:'Beau Is Afraid',d:'Ari Aster',y:2023},
+    {t:'Under the Skin',d:'Jonathan Glazer',y:2013},
+    {t:'Vivarium',d:'Lorcan Finnegan',y:2019},
+    {t:'Sick of Myself',d:'Kristoffer Borgli',y:2022},
+    {t:'Dream Scenario',d:'Kristoffer Borgli',y:2023},
+    {t:'Linoleum',d:'Colin West',y:2022},
+    {t:'Cosmopolis',d:'David Cronenberg',y:2012},
+    {t:'Maps to the Stars',d:'David Cronenberg',y:2014},
+    {t:'Blue Velvet',d:'David Lynch',y:1986},
+    {t:'Le Congrès',d:'Ari Folman',y:2013},
+    {t:'Enemy',d:'Denis Villeneuve',y:2013},
+    {t:'Kinds of Kindness',d:'Yorgos Lanthimos',y:2024}
+  ], suggestions: [
+    {t:'Dogtooth',d:'Yorgos Lanthimos',y:2009,type:'must'},
+    {t:'Persona',d:'Ingmar Bergman',y:1966,type:'must'},
+    {t:'Eraserhead',d:'David Lynch',y:1977,type:'must'},
+    {t:'Triangle of Sadness',d:'Ruben Östlund',y:2022,type:'new'},
+    {t:'The Killing of a Sacred Deer',d:'Yorgos Lanthimos',y:2017,type:'new'},
+    {t:'The Lobster',d:'Yorgos Lanthimos',y:2015,type:'new'},
+    {t:'Melancholia',d:'Lars von Trier',y:2011,type:'new'},
+    {t:"I'm Thinking of Ending Things",d:'Charlie Kaufman',y:2020,type:'new'},
+    {t:'Synecdoche New York',d:'Charlie Kaufman',y:2008,type:'must'},
+    {t:'Songs from the Second Floor',d:'Roy Andersson',y:2000,type:'must'}
+  ]},
+  { id: 'sf', label: 'SF', films: [
+    {t:'Solaris',d:'Andreï Tarkovski',y:1972},
+    {t:'Interstellar',d:'Christopher Nolan',y:2014},
+    {t:'High Life',d:'Claire Denis',y:2018},
+    {t:'District 9',d:'Neill Blomkamp',y:2009},
+    {t:"Les Fils de l'homme",d:'Alfonso Cuarón',y:2006},
+    {t:'Alien',d:'Ridley Scott',y:1979}
+  ], suggestions: [
+    {t:"2001 : L'Odyssée de l'espace",d:'Stanley Kubrick',y:1968,type:'must'},
+    {t:'Blade Runner',d:'Ridley Scott',y:1982,type:'must'},
+    {t:'Moon',d:'Duncan Jones',y:2009,type:'new'},
+    {t:'Ex Machina',d:'Alex Garland',y:2014,type:'new'},
+    {t:'Annihilation',d:'Alex Garland',y:2018,type:'new'},
+    {t:'Arrival',d:'Denis Villeneuve',y:2016,type:'new'},
+    {t:'Primer',d:'Shane Carruth',y:2004,type:'must'},
+    {t:'Coherence',d:'James Ward Byrkit',y:2013,type:'new'},
+    {t:'Nope',d:'Jordan Peele',y:2022,type:'new'},
+    {t:'Sunshine',d:'Danny Boyle',y:2007,type:'new'}
+  ]},
+  { id: 'guerre', label: 'GUERRE', films: [
+    {t:'Apocalypse Now',d:'Francis Ford Coppola',y:1979},
+    {t:'Platoon',d:'Oliver Stone',y:1986},
+    {t:'Come and See',d:'Elem Klimov',y:1985},
+    {t:'Das Boot',d:'Wolfgang Petersen',y:1981},
+    {t:'Killers of the Flower Moon',d:'Martin Scorsese',y:2023},
+    {t:'The Zone of Interest',d:'Jonathan Glazer',y:2023},
+    {t:'Oppenheimer',d:'Christopher Nolan',y:2023}
+  ], suggestions: [
+    {t:'Full Metal Jacket',d:'Stanley Kubrick',y:1987,type:'must'},
+    {t:'La Liste de Schindler',d:'Steven Spielberg',y:1993,type:'must'},
+    {t:'Au revoir les enfants',d:'Louis Malle',y:1987,type:'must'},
+    {t:'Dunkirk',d:'Christopher Nolan',y:2017,type:'new'},
+    {t:"Ivan's Childhood",d:'Andreï Tarkovski',y:1962,type:'must'},
+    {t:'La Ligne rouge',d:'Terrence Malick',y:1998,type:'must'},
+    {t:'Son of Saul',d:'László Nemes',y:2015,type:'new'},
+    {t:'1917',d:'Sam Mendes',y:2019,type:'new'},
+    {t:"Lettres d'Iwo Jima",d:'Clint Eastwood',y:2006,type:'new'},
+    {t:"Les Sentiers de la gloire",d:'Stanley Kubrick',y:1957,type:'must'}
+  ]},
+  { id: 'fantastique', label: 'FANTASTIQUE', films: [
+    {t:'Big Fish',d:'Tim Burton',y:2003},
+    {t:'Le Labyrinthe de Pan',d:'Guillermo del Toro',y:2006},
+    {t:"L'Histoire sans fin",d:'Wolfgang Petersen',y:1984},
+    {t:'Le Village',d:'M. Night Shyamalan',y:2004},
+    {t:'Asteroid City',d:'Wes Anderson',y:2023},
+    {t:'Enter the Void',d:'Gaspar Noé',y:2009}
+  ], suggestions: [
+    {t:'La Belle et la Bête',d:'Jean Cocteau',y:1946,type:'must'},
+    {t:'The Fall',d:'Tarsem Singh',y:2006,type:'new'},
+    {t:"L'Échine du diable",d:'Guillermo del Toro',y:2001,type:'must'},
+    {t:'A Ghost Story',d:'David Lowery',y:2017,type:'new'},
+    {t:'The Shape of Water',d:'Guillermo del Toro',y:2017,type:'new'},
+    {t:'Princesse Mononoké',d:'Hayao Miyazaki',y:1997,type:'must'},
+    {t:'Le Voyage de Chihiro',d:'Hayao Miyazaki',y:2001,type:'must'},
+    {t:'Beasts of the Southern Wild',d:'Benh Zeitlin',y:2012,type:'new'},
+    {t:'Okja',d:'Bong Joon-ho',y:2017,type:'new'},
+    {t:'Brazil',d:'Terry Gilliam',y:1985,type:'must'}
+  ]},
+  { id: 'comedie', label: 'COMEDIE', films: [
+    {t:'Jojo Rabbit',d:'Taika Waititi',y:2019},
+    {t:'Un poisson nommé Wanda',d:'Charles Crichton',y:1988},
+    {t:'La Cité de la peur',d:'Alain Berbérian',y:1994},
+    {t:'La vie est un long fleuve tranquille',d:'Étienne Chatiliez',y:1988},
+    {t:'Les Nouveaux Sauvages',d:'Damián Szifron',y:2014},
+    {t:'The Lovebirds',d:'Michael Showalter',y:2020},
+    {t:'Just Go With It',d:'Dennis Dugan',y:2011},
+    {t:'Thank You for Smoking',d:'Jason Reitman',y:2005},
+    {t:'La La Land',d:'Damien Chazelle',y:2016}
+  ], suggestions: [
+    {t:'Le Grand Lebowski',d:'Joel & Ethan Coen',y:1998,type:'must'},
+    {t:'Dr. Folamour',d:'Stanley Kubrick',y:1964,type:'must'},
+    {t:'Parasite',d:'Bong Joon-ho',y:2019,type:'new'},
+    {t:'The Death of Stalin',d:'Armando Iannucci',y:2017,type:'new'},
+    {t:'Le Dîner de cons',d:'Francis Veber',y:1998,type:'must'},
+    {t:'In Bruges',d:'Martin McDonagh',y:2008,type:'new'},
+    {t:'Burn After Reading',d:'Joel & Ethan Coen',y:2008,type:'new'},
+    {t:'Four Lions',d:'Chris Morris',y:2010,type:'new'},
+    {t:'Election',d:'Alexander Payne',y:1999,type:'must'},
+    {t:'I, Tonya',d:'Craig Gillespie',y:2017,type:'new'}
+  ]},
+  { id: 'culte', label: 'CULTE', films: [
+    {t:'Le Bon la Brute et le Truand',d:'Sergio Leone',y:1966},
+    {t:"Il était une fois dans l'Ouest",d:'Sergio Leone',y:1968},
+    {t:'Le Cercle des poètes disparus',d:'Peter Weir',y:1989},
+    {t:'Buffet froid',d:'Bertrand Blier',y:1979},
+    {t:'Delicatessen',d:'Jeunet & Caro',y:1991},
+    {t:'Retour vers le futur',d:'Robert Zemeckis',y:1985},
+    {t:'Stalker',d:'Andreï Tarkovski',y:1979}
+  ], suggestions: [
+    {t:'Citizen Kane',d:'Orson Welles',y:1941,type:'must'},
+    {t:'Le Parrain',d:'Francis Ford Coppola',y:1972,type:'must'},
+    {t:"8½",d:'Federico Fellini',y:1963,type:'must'},
+    {t:'Sunset Boulevard',d:'Billy Wilder',y:1950,type:'must'},
+    {t:'La Nuit américaine',d:'François Truffaut',y:1973,type:'must'},
+    {t:'Rocco et ses frères',d:'Luchino Visconti',y:1960,type:'must'},
+    {t:"Il était une fois en Amérique",d:'Sergio Leone',y:1984,type:'must'},
+    {t:'À bout de souffle',d:'Jean-Luc Godard',y:1960,type:'must'},
+    {t:'M le Maudit',d:'Fritz Lang',y:1931,type:'must'},
+    {t:'Le Mépris',d:'Jean-Luc Godard',y:1963,type:'must'}
+  ]},
+  { id: 'animation', label: 'ANIMATION', films: [
+    {t:'La Tortue Rouge',d:'Michael Dudok de Wit',y:2016},
+    {t:'Le Tombeau des lucioles',d:'Isao Takahata',y:1988},
+    {t:'Belladonna of Sadness',d:'Eiichi Yamamoto',y:1973},
+    {t:"Chirin's Bell",d:'Takeshi Tamiya',y:1978},
+    {t:'The Plague Dogs',d:'Martin Rosen',y:1982},
+    {t:'WALL·E',d:'Andrew Stanton',y:2008},
+    {t:'Le Garçon et le Héron',d:'Hayao Miyazaki',y:2023},
+    {t:'Persepolis',d:'Marjane Satrapi',y:2007},
+    {t:'Valse avec Bachir',d:'Ari Folman',y:2008},
+    {t:'Anomalisa',d:'Charlie Kaufman',y:2015},
+    {t:'Le Géant de fer',d:'Brad Bird',y:1999},
+    {t:'Flee',d:'Jonas Poher Rasmussen',y:2021},
+    {t:'Là-haut',d:'Pete Docter',y:2009},
+    {t:'Brendan et le secret de Kells',d:'Tomm Moore',y:2009},
+    {t:'Azur et Asmar',d:'Michel Ocelot',y:2006},
+    {t:'Le Peuple loup',d:'Sōichi Masui',y:2020},
+    {t:'Le Chant de la mer',d:'Tomm Moore',y:2014},
+    {t:'Son of the White Mare',d:'Marcell Jankovics',y:1981},
+    {t:"Angel's Egg",d:'Mamoru Oshii',y:1985},
+    {t:'Mind Game',d:'Masaaki Yuasa',y:2004},
+    {t:'Suzume',d:'Makoto Shinkai',y:2022},
+    {t:'Mars Express',d:'Jérémie Périn',y:2023},
+    {t:'Gandahar',d:'René Laloux',y:1988},
+    {t:'Voyage vers Agartha',d:'Makoto Shinkai',y:2011},
+    {t:'Last Man',d:'Balak & Michaël Sanlaville',y:2023},
+    {t:'Le Cochon qui ne voulait pas mourir',d:'Nikola Majdak Jr.',y:2021}
+  ], suggestions: [
+    {t:'Perfect Blue',d:'Satoshi Kon',y:1997,type:'must'},
+    {t:'Paprika',d:'Satoshi Kon',y:2006,type:'must'},
+    {t:'Nausicaä',d:'Hayao Miyazaki',y:1984,type:'must'},
+    {t:'Les Triplettes de Belleville',d:'Sylvain Chomet',y:2003,type:'must'},
+    {t:'Fantastic Mr. Fox',d:'Wes Anderson',y:2009,type:'new'},
+    {t:'Wolfwalkers',d:'Tomm Moore',y:2020,type:'new'},
+    {t:'Le Conte de la Princesse Kaguya',d:'Isao Takahata',y:2013,type:'must'},
+    {t:'La Planète sauvage',d:'René Laloux',y:1973,type:'must'},
+    {t:'Inu-Oh',d:'Masaaki Yuasa',y:2021,type:'new'},
+    {t:'Alice',d:'Jan Švankmajer',y:1988,type:'must'}
+  ]}
+];
+
+const SERIES_SECTIONS = [
+  { id: 'acommencer', label: 'A COMMENCER' },
+  { id: 'animation', label: 'ANIMATION' },
+  { id: 'encours', label: 'EN COURS' }
+];
+
+const SERIES_DEFAULT = {
+  acommencer: [
+    {t:'Narvalo',y:2022},{t:'Life After Life',y:2022},{t:'Normal People',y:2020},
+    {t:'Gen V',y:2023},{t:'Barry',y:2018},{t:'Dopesick',y:2021},
+    {t:'The Dropout',y:2022},{t:'The Ones Who Live',y:2024},{t:'Power',y:2014},
+    {t:'Hacks',y:2021},{t:'The Great',y:2020},{t:'Slow Horses',y:2022},
+    {t:'Shining Girls',y:2022},{t:'Bad Sisters',y:2022},{t:'Am I Being Unreasonable?',y:2022},
+    {t:'Our Flag Means Death',y:2022},{t:'Waco',y:2018},{t:'Reign',y:2013},
+    {t:'Lioness',y:2023},{t:'The Mick',y:2017},{t:'Good Girls',y:2018},
+    {t:'Good Behavior',y:2016},{t:'Le Bureau des légendes',y:2015},{t:'Years and Years',y:2019},
+    {t:'Snowfall',y:2017},{t:'Breaking Bad',y:2008},{t:'Man Seeking Woman',y:2015},
+    {t:'What If?',y:2021},{t:'Fargo',y:2014},{t:'Succession',y:2018},
+    {t:'True Detective',y:2014},{t:'7ème Ciel',y:1996},{t:'High Town',y:2020},
+    {t:'The Vince Staples Show',y:2024},{t:"Kevin Can F**k Himself",y:2021},
+    {t:'The Last of Us',y:2023},{t:'Girls',y:2012},{t:'Doctor Who',y:2005},
+    {t:'Suburgatory',y:2011},{t:'La Fièvre',y:2024},{t:'Le Monde de demain',y:2022},
+    {t:'Mobland',y:2025},{t:'Animal Kingdom',y:2016},{t:'Hannibal',y:2013},
+    {t:'The Detour',y:2016},{t:'Les Sopranos',y:1999},{t:"The Devil's Hour",y:2022},
+    {t:'Scandal',y:2012},{t:'Krapopolis',y:2023},{t:'Twin Peaks',y:1990},
+    {t:'Watchmen',y:2019},{t:'Battlestar Galactica',y:2004},{t:'The Crowded Room',y:2023},
+    {t:'A Knight of the Seven Kingdoms',y:2024},{t:'Corporate',y:2018},
+    {t:'Preacher',y:2016},{t:'The Big C',y:2010},{t:'Weeds',y:2005}
+  ],
+  animation: [
+    {t:'Scavenger Reign',y:2023},{t:'The Owl House',y:2020},{t:'Amphibia',y:2019},
+    {t:'MTV Downtown',y:1999},{t:'D.Gray-Man',y:2006},{t:'Star Wars Visions',y:2021},
+    {t:'Adventure Time',y:2010},{t:'Over the Garden Wall',y:2014},
+    {t:'Centaur World',y:2021},{t:'Primal',y:2019},{t:'Frieren',y:2023},
+    {t:'Claymore',y:2007},{t:"Hell's Paradise",y:2023}
+  ],
+  encours: []
+};
+
+/* ===================== STATE ===================== */
+function load(key, def) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; }
+  catch { return def; }
+}
+function save(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
+const S = {
+  seen:      load('wl-seen-v4', {}),
+  sugg:      load('wl-sugg-v5', {}),
+  disliked:  load('wl-disliked-v4', {}),
+  extra:     load('wl-extra-v4', {}),
+  highlight: load('wl-highlight-v4', {}),
+  must:      load('wl-must-v1', {}),
+  series:    load('wl-series-v2', {}),
+  seriesHl:  load('wl-series-hl-v1', {})
+};
+
+// Track which categories are open
+const openCats = new Set(['drame']);
+
+/* ===================== HELPERS ===================== */
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function key(catId, title) { return catId + '::' + title; }
+
+function getFilms(catId) {
+  const cat = CATEGORIES.find(c => c.id === catId);
+  const base = cat ? cat.films : [];
+  const extra = S.extra[catId] || [];
+  const all = [...base, ...extra];
+  // highlighted float to top
+  return [
+    ...all.filter(f => S.highlight[key(catId, f.t)]),
+    ...all.filter(f => !S.highlight[key(catId, f.t)])
+  ];
+}
+
+function getSuggestions(catId) {
+  if (S.sugg[catId]) return S.sugg[catId];
+  const cat = CATEGORIES.find(c => c.id === catId);
+  return cat ? cat.suggestions : [];
+}
+
+function getSeriesList(sectionId) {
+  if (S.series[sectionId]) return S.series[sectionId];
+  const def = SERIES_DEFAULT[sectionId] || [];
+  return def.map(s => ({...s, done: false}));
+}
+
+function initSeriesState() {
+  SERIES_SECTIONS.forEach(sec => {
+    if (!S.series[sec.id]) {
+      S.series[sec.id] = getSeriesList(sec.id);
+    }
+  });
+}
+
+/* ===================== RENDER FILMS ===================== */
+function renderFilmRow(film, catId, isSugg) {
+  const k = key(catId, film.t);
+  const seen = !!S.seen[k];
+  const hl = !!S.highlight[k];
+  const must = !!S.must[k];
+  const cls = [
+    'film-item',
+    seen ? 'seen' : '',
+    hl ? 'highlighted' : ''
+  ].filter(Boolean).join(' ');
+
+  const badge = must
+    ? `<span class="badge badge-must">incontournable</span>`
+    : isSugg
+      ? `<span class="badge badge-sugg">suggestion</span>`
+      : '';
+
+  const hlCls = hl ? ' hl-active' : '';
+  const mustCls = must ? ' must-active' : '';
+
+  const actions = isSugg
+    ? `<div class="actions">
+        <button class="act-btn${hlCls}" data-action="toggle-hl" data-cat="${catId}" data-title="${esc(film.t)}" title="Mettre en avant">★</button>
+        <button class="act-btn" data-action="promote-sugg" data-cat="${catId}" data-title="${esc(film.t)}" data-dir="${esc(film.d||'')}" data-year="${film.y||''}" title="Promouvoir">＋</button>
+        <button class="act-btn" data-action="replace-sugg" data-cat="${catId}" data-title="${esc(film.t)}" title="Remplacer">↻</button>
+        <button class="act-btn${mustCls}" data-action="toggle-must" data-cat="${catId}" data-title="${esc(film.t)}" title="Incontournable">◆</button>
+      </div>`
+    : `<div class="actions">
+        <button class="act-btn${hlCls}" data-action="toggle-hl" data-cat="${catId}" data-title="${esc(film.t)}" title="Mettre en avant">★</button>
+        <button class="act-btn${mustCls}" data-action="toggle-must" data-cat="${catId}" data-title="${esc(film.t)}" title="Incontournable">◆</button>
+        <button class="act-btn del" data-action="delete-film" data-cat="${catId}" data-title="${esc(film.t)}" title="Supprimer">✕</button>
+      </div>`;
+
+  return `<div class="${cls}" data-cat="${catId}" data-title="${esc(film.t)}">
+    <button class="seen-btn" data-action="toggle-seen" data-cat="${catId}" data-title="${esc(film.t)}">${seen ? '✓' : ''}</button>
+    <div class="film-info">
+      <div class="film-title">${esc(film.t)}</div>
+      ${film.d ? `<div class="film-director">${esc(film.d)}</div>` : ''}
+    </div>
+    <div class="film-meta">
+      ${film.y ? `<span class="film-year">${film.y}</span>` : ''}
+      ${badge}
+      ${actions}
+    </div>
+  </div>`;
+}
+
+function renderCategory(cat) {
+  const isOpen = openCats.has(cat.id);
+  const films = getFilms(cat.id);
+  const suggestions = getSuggestions(cat.id);
+  const allForCount = [...films, ...suggestions];
+  const seenCount = allForCount.filter(f => S.seen[key(cat.id, f.t)]).length;
+
+  const filmRows = films.map(f => renderFilmRow(f, cat.id, false)).join('');
+  const suggRows = suggestions.map(f => renderFilmRow(f, cat.id, true)).join('');
+
+  return `<div class="category${isOpen ? ' open' : ''}" id="cat-${cat.id}">
+    <div class="cat-header" data-action="toggle-cat" data-cat="${cat.id}">
+      <div class="cat-header-left">
+        <span class="cat-label">${esc(cat.label)}</span>
+        <span class="cat-count">${seenCount} / ${allForCount.length}</span>
+      </div>
+      <span class="cat-chevron">›</span>
+    </div>
+    <div class="cat-body">
+      ${filmRows}
+      <div class="sugg-sep">Suggestions</div>
+      ${suggRows}
+      <button class="add-trigger" data-action="show-add-form" data-cat="${cat.id}">＋ ajouter un film</button>
+      <div class="add-form" id="add-form-${cat.id}">
+        <input class="inp-title" placeholder="Titre" data-field="title">
+        <input class="inp-dir" placeholder="Réalisateur" data-field="dir">
+        <input class="inp-year" placeholder="Année" data-field="year" type="number">
+        <button class="btn-submit" data-action="submit-add-film" data-cat="${cat.id}">Ajouter</button>
+        <button class="btn-cancel" data-action="cancel-add-film" data-cat="${cat.id}">Annuler</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderFilmsTab() {
+  const container = document.getElementById('cats-container');
+  container.innerHTML = CATEGORIES.map(renderCategory).join('');
+  updateStats();
+}
+
+function rerenderCategory(catId) {
+  const cat = CATEGORIES.find(c => c.id === catId);
+  if (!cat) return;
+  const el = document.getElementById('cat-' + catId);
+  if (!el) return;
+  el.outerHTML = renderCategory(cat);
+  updateStats();
+}
+
+function updateStats() {
+  let total = 0, seen = 0;
+  CATEGORIES.forEach(cat => {
+    const films = getFilms(cat.id);
+    const suggestions = getSuggestions(cat.id);
+    const all = [...films, ...suggestions];
+    total += all.length;
+    seen += all.filter(f => S.seen[key(cat.id, f.t)]).length;
+  });
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-seen').textContent = seen;
+  document.getElementById('stat-left').textContent = total - seen;
+}
+
+/* ===================== RENDER SERIES ===================== */
+function renderSeriesRow(serie, sectionId) {
+  const k = key(sectionId, serie.t);
+  const done = !!serie.done;
+  const hl = !!S.seriesHl[k];
+  const cls = ['serie-item', done ? 'done' : '', hl ? 'highlighted' : ''].filter(Boolean).join(' ');
+  const canMove = sectionId === 'acommencer' || sectionId === 'animation';
+
+  return `<div class="${cls}">
+    <button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>
+    <div class="film-info">
+      <div class="serie-title">${esc(serie.t)}</div>
+    </div>
+    <div class="film-meta">
+      ${serie.y ? `<span class="serie-year">${serie.y}</span>` : ''}
+      <div class="actions">
+        <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
+        ${canMove ? `<button class="act-btn" data-action="move-encours" data-section="${sectionId}" data-title="${esc(serie.t)}" title="En cours">▶</button>` : ''}
+        <button class="act-btn del" data-action="delete-serie" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderSeriesSection(sec) {
+  const list = S.series[sec.id] || [];
+  const hl = list.filter(s => S.seriesHl[key(sec.id, s.t)]);
+  const rest = list.filter(s => !S.seriesHl[key(sec.id, s.t)]);
+  const sorted = [...hl, ...rest];
+  const doneCount = list.filter(s => s.done).length;
+
+  return `<div class="series-section" id="sec-${sec.id}">
+    <div class="section-header">
+      <span>${esc(sec.label)}</span>
+      <span class="section-count">${doneCount} / ${list.length}</span>
+    </div>
+    ${sorted.map(s => renderSeriesRow(s, sec.id)).join('')}
+    <button class="add-trigger" data-action="show-add-serie" data-section="${sec.id}">＋ ajouter une série</button>
+    <div class="add-form" id="add-serie-${sec.id}">
+      <input class="inp-title" placeholder="Titre" data-field="title">
+      <input class="inp-year" placeholder="Année" data-field="year" type="number">
+      <button class="btn-submit" data-action="submit-add-serie" data-section="${sec.id}">Ajouter</button>
+      <button class="btn-cancel" data-action="cancel-add-serie" data-section="${sec.id}">Annuler</button>
+    </div>
+  </div>`;
+}
+
+function renderSeriesTab() {
+  const container = document.getElementById('series-container');
+  container.innerHTML = SERIES_SECTIONS.map(renderSeriesSection).join('');
+}
+
+function rerenderSection(sectionId) {
+  const sec = SERIES_SECTIONS.find(s => s.id === sectionId);
+  if (!sec) return;
+  const el = document.getElementById('sec-' + sectionId);
+  if (!el) return;
+  el.outerHTML = renderSeriesSection(sec);
+}
+
+/* ===================== AI ===================== */
+async function callAI(catId, replacedTitle) {
+  const cat = CATEGORIES.find(c => c.id === catId);
+  if (!cat) return null;
+  const allFilms = [...getFilms(catId), ...getSuggestions(catId)];
+  const allTitles = allFilms.map(f => f.t).join(', ');
+  const disliked = (S.disliked[catId] || []).join(', ');
+
+  const prompt = `[PROFIL UTILISATEUR]
+L'utilisateur a une watchlist cinéphile très éclectique. Drames d'auteur intimes, thrillers/crime (Scorsese, Coen, Fincher, PTA), horreur atmosphérique, cinéma psychologique/WTF (Lynch, Lanthimos), SF contemplative (Tarkovski), animation d'auteur exigeante. Cinéma européen, coréen, japonais. Préfère atmosphère, profondeur émotionnelle, ambition formelle.
+
+Catégorie: ${cat.label}
+Films déjà présents: ${allTitles}
+Films que l'utilisateur n'aime pas: ${disliked}
+Film remplacé: ${replacedTitle}
+
+Suggère UN seul film différent. Réponds UNIQUEMENT avec du JSON valide:
+{"t":"titre","d":"réalisateur","y":2001}`;
+
+  try {
+    const res = await fetch('/.netlify/functions/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const match = text.match(/\{[^}]+\}/);
+    if (!match) return null;
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+}
+
+async function replaceSugg(catId, oldTitle, btn) {
+  if (btn) { btn.classList.add('loading'); btn.textContent = '↻'; }
+
+  // Add to disliked
+  if (!S.disliked[catId]) S.disliked[catId] = [];
+  if (!S.disliked[catId].includes(oldTitle)) S.disliked[catId].push(oldTitle);
+  save('wl-disliked-v4', S.disliked);
+
+  // Remove from suggestions
+  const suggs = getSuggestions(catId).filter(f => f.t !== oldTitle);
+  S.sugg[catId] = suggs;
+
+  const newFilm = await callAI(catId, oldTitle);
+  if (newFilm) {
+    S.sugg[catId] = [...suggs, newFilm];
+  }
+  save('wl-sugg-v5', S.sugg);
+  rerenderCategory(catId);
+}
+
+async function promoteSugg(catId, film) {
+  // Move to extra
+  if (!S.extra[catId]) S.extra[catId] = [];
+  S.extra[catId].push({t: film.t, d: film.d, y: film.y});
+  save('wl-extra-v4', S.extra);
+
+  // Remove from suggestions
+  const suggs = getSuggestions(catId).filter(f => f.t !== film.t);
+  S.sugg[catId] = suggs;
+
+  // Get a replacement suggestion from AI
+  const newFilm = await callAI(catId, film.t);
+  if (newFilm) S.sugg[catId] = [...suggs, newFilm];
+  save('wl-sugg-v5', S.sugg);
+
+  rerenderCategory(catId);
+}
+
+/* ===================== ACTIONS ===================== */
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const catId = btn.dataset.cat;
+  const title = btn.dataset.title ? btn.dataset.title : null;
+  const sectionId = btn.dataset.section;
+
+  // Films
+  if (action === 'toggle-cat') {
+    if (openCats.has(catId)) openCats.delete(catId);
+    else openCats.add(catId);
+    const el = document.getElementById('cat-' + catId);
+    if (el) el.classList.toggle('open', openCats.has(catId));
+    return;
+  }
+
+  if (action === 'toggle-seen') {
+    const k = key(catId, title);
+    S.seen[k] = !S.seen[k];
+    if (!S.seen[k]) delete S.seen[k];
+    save('wl-seen-v4', S.seen);
+    rerenderCategory(catId);
+    return;
+  }
+
+  if (action === 'toggle-hl') {
+    const k = key(catId, title);
+    S.highlight[k] = !S.highlight[k];
+    if (!S.highlight[k]) delete S.highlight[k];
+    save('wl-highlight-v4', S.highlight);
+    rerenderCategory(catId);
+    return;
+  }
+
+  if (action === 'toggle-must') {
+    const k = key(catId, title);
+    S.must[k] = !S.must[k];
+    if (!S.must[k]) delete S.must[k];
+    save('wl-must-v1', S.must);
+    rerenderCategory(catId);
+    return;
+  }
+
+  if (action === 'delete-film') {
+    if (!confirm(`Supprimer "${title}" ?`)) return;
+    // Try to remove from extra first, then mark as deleted from base
+    if (S.extra[catId]) {
+      S.extra[catId] = S.extra[catId].filter(f => f.t !== title);
+      save('wl-extra-v4', S.extra);
+    }
+    // If it's a base film, add to disliked so it won't come back
+    if (!S.disliked[catId]) S.disliked[catId] = [];
+    if (!S.disliked[catId].includes(title)) S.disliked[catId].push(title);
+    save('wl-disliked-v4', S.disliked);
+    rerenderCategory(catId);
+    return;
+  }
+
+  if (action === 'replace-sugg') {
+    replaceSugg(catId, title, btn);
+    return;
+  }
+
+  if (action === 'promote-sugg') {
+    const film = { t: title, d: btn.dataset.dir || '', y: parseInt(btn.dataset.year) || null };
+    promoteSugg(catId, film);
+    return;
+  }
+
+  if (action === 'show-add-form') {
+    const form = document.getElementById('add-form-' + catId);
+    if (form) { form.classList.toggle('visible'); form.querySelector('.inp-title').focus(); }
+    return;
+  }
+
+  if (action === 'cancel-add-film') {
+    const form = document.getElementById('add-form-' + catId);
+    if (form) form.classList.remove('visible');
+    return;
+  }
+
+  if (action === 'submit-add-film') {
+    const form = document.getElementById('add-form-' + catId);
+    if (!form) return;
+    const t = form.querySelector('[data-field="title"]').value.trim();
+    const d = form.querySelector('[data-field="dir"]').value.trim();
+    const y = parseInt(form.querySelector('[data-field="year"]').value) || null;
+    if (!t) return;
+    if (!S.extra[catId]) S.extra[catId] = [];
+    S.extra[catId].push({t, d, y});
+    save('wl-extra-v4', S.extra);
+    rerenderCategory(catId);
+    return;
+  }
+
+  // Series
+  if (action === 'toggle-serie-done') {
+    const list = S.series[sectionId] || [];
+    const idx = list.findIndex(s => s.t === title);
+    if (idx >= 0) {
+      list[idx].done = !list[idx].done;
+      S.series[sectionId] = list;
+      save('wl-series-v2', S.series);
+      rerenderSection(sectionId);
+    }
+    return;
+  }
+
+  if (action === 'toggle-serie-hl') {
+    const k = key(sectionId, title);
+    S.seriesHl[k] = !S.seriesHl[k];
+    if (!S.seriesHl[k]) delete S.seriesHl[k];
+    save('wl-series-hl-v1', S.seriesHl);
+    rerenderSection(sectionId);
+    return;
+  }
+
+  if (action === 'move-encours') {
+    const fromList = S.series[sectionId] || [];
+    const idx = fromList.findIndex(s => s.t === title);
+    if (idx < 0) return;
+    const [serie] = fromList.splice(idx, 1);
+    S.series[sectionId] = fromList;
+    if (!S.series.encours) S.series.encours = [];
+    S.series.encours.push({...serie, done: false});
+    save('wl-series-v2', S.series);
+    rerenderSection(sectionId);
+    rerenderSection('encours');
+    return;
+  }
+
+  if (action === 'delete-serie') {
+    if (!confirm(`Supprimer "${title}" ?`)) return;
+    S.series[sectionId] = (S.series[sectionId] || []).filter(s => s.t !== title);
+    save('wl-series-v2', S.series);
+    rerenderSection(sectionId);
+    return;
+  }
+
+  if (action === 'show-add-serie') {
+    const form = document.getElementById('add-serie-' + sectionId);
+    if (form) { form.classList.toggle('visible'); form.querySelector('.inp-title').focus(); }
+    return;
+  }
+
+  if (action === 'cancel-add-serie') {
+    const form = document.getElementById('add-serie-' + sectionId);
+    if (form) form.classList.remove('visible');
+    return;
+  }
+
+  if (action === 'submit-add-serie') {
+    const form = document.getElementById('add-serie-' + sectionId);
+    if (!form) return;
+    const t = form.querySelector('[data-field="title"]').value.trim();
+    const y = parseInt(form.querySelector('[data-field="year"]').value) || null;
+    if (!t) return;
+    if (!S.series[sectionId]) S.series[sectionId] = [];
+    S.series[sectionId].push({t, y, done: false});
+    save('wl-series-v2', S.series);
+    rerenderSection(sectionId);
+    return;
+  }
+});
+
+/* ===================== TABS ===================== */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab + '-tab').classList.add('active');
+  });
+});
+
+/* ===================== PWA ===================== */
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('pwa-banner').hidden = false;
+});
+document.getElementById('pwa-install').addEventListener('click', () => {
+  if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; }
+  document.getElementById('pwa-banner').hidden = true;
+});
+document.getElementById('pwa-dismiss').addEventListener('click', () => {
+  document.getElementById('pwa-banner').hidden = true;
+});
+
+/* ===================== INIT ===================== */
+initSeriesState();
+renderFilmsTab();
+renderSeriesTab();
+</script>
+</body>
+</html>
