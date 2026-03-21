@@ -27,8 +27,8 @@ body {
   color: var(--cream);
   background-color: var(--bg);
   background-image:
-    linear-gradient(rgba(20,18,12,0.58), rgba(20,18,12,0.58)),
-    url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=1600&q=80');
+    linear-gradient(rgba(20,18,12,0.52), rgba(20,18,12,0.52)),
+    url('https://images.unsplash.com/photo-1490750967868-88df5691cc7e?w=1600&q=80');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -242,6 +242,16 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 
 .serie-title { font-family: 'EB Garamond', serif; font-style: italic; font-size: 1rem; }
 .serie-year { font-size: .72rem; color: var(--muted); }
+.serie-ep { font-size: .68rem; color: var(--orange); margin-top: .1rem; letter-spacing: .04em; }
+.ep-tracker { display: flex; align-items: center; gap: .2rem; flex-shrink: 0; }
+.ep-btn {
+  width: 20px; height: 20px; border-radius: 3px;
+  background: rgba(224,120,56,0.15); border: 1px solid rgba(224,120,56,0.3);
+  color: var(--orange); font-size: .85rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.ep-btn:hover { background: rgba(224,120,56,0.3); }
 
 /* Series tab header */
 .series-header { text-align: center; padding: 1.5rem 0 1.5rem; }
@@ -595,7 +605,8 @@ const S = {
   highlight: load('wl-highlight-v4', {}),
   must:      load('wl-must-v1', {}),
   series:    load('wl-series-v2', {}),
-  seriesHl:  load('wl-series-hl-v1', {})
+  seriesHl:  load('wl-series-hl-v1', {}),
+  seriesEp:  load('wl-series-ep-v1', {})
 };
 
 // Track which categories are open
@@ -757,14 +768,21 @@ function renderSeriesRow(serie, sectionId) {
   const hl = !!S.seriesHl[k];
   const cls = ['serie-item', done ? 'done' : '', hl ? 'highlighted' : ''].filter(Boolean).join(' ');
   const canMove = sectionId === 'acommencer' || sectionId === 'animation';
+  const isEncours = sectionId === 'encours';
+  const ep = S.seriesEp[k] || 0;
 
   return `<div class="${cls}">
     <button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>
     <div class="film-info">
       <div class="serie-title">${esc(serie.t)}</div>
+      ${isEncours ? `<div class="serie-ep">Épisode ${ep}</div>` : ''}
     </div>
     <div class="film-meta">
       ${serie.y ? `<span class="serie-year">${serie.y}</span>` : ''}
+      ${isEncours ? `<div class="ep-tracker">
+        <button class="ep-btn" data-action="ep-dec" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Épisode précédent">−</button>
+        <button class="ep-btn" data-action="ep-inc" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Épisode suivant">＋</button>
+      </div>` : ''}
       <div class="actions">
         <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
         ${canMove ? `<button class="act-btn" data-action="move-encours" data-section="${sectionId}" data-title="${esc(serie.t)}" title="En cours">▶</button>` : ''}
@@ -998,6 +1016,16 @@ document.addEventListener('click', async (e) => {
     S.seriesHl[k] = !S.seriesHl[k];
     if (!S.seriesHl[k]) delete S.seriesHl[k];
     save('wl-series-hl-v1', S.seriesHl);
+    rerenderSection(sectionId);
+    return;
+  }
+
+  if (action === 'ep-inc' || action === 'ep-dec') {
+    const k = key(sectionId, title);
+    const cur = S.seriesEp[k] || 0;
+    const next = action === 'ep-inc' ? cur + 1 : Math.max(0, cur - 1);
+    S.seriesEp[k] = next;
+    save('wl-series-ep-v1', S.seriesEp);
     rerenderSection(sectionId);
     return;
   }
