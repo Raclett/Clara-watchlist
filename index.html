@@ -27,7 +27,7 @@ body {
   color: var(--cream);
   background-color: var(--bg);
   background-image:
-    linear-gradient(rgba(20,18,12,0.52), rgba(20,18,12,0.52)),
+    linear-gradient(rgba(20,18,12,0.22), rgba(20,18,12,0.22)),
     url('https://images.unsplash.com/photo-1490750967868-88df5691cc7e?w=1600&q=80');
   background-size: cover;
   background-position: center;
@@ -158,19 +158,22 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .badge-sugg { background: rgba(154,138,200,0.15); color: var(--violet); border: 1px solid rgba(154,138,200,0.25); }
 
 .actions {
-  display: flex; align-items: center; gap: .15rem;
+  display: flex; align-items: center; gap: .45rem;
   opacity: 0; transition: opacity .15s;
 }
-.film-item:hover .actions { opacity: 1; }
+.film-item:hover .actions,
+.serie-item:hover .actions { opacity: 1; }
 .act-btn {
-  width: 24px; height: 24px; border-radius: 4px;
+  width: 28px; height: 28px; border-radius: 5px;
   display: flex; align-items: center; justify-content: center;
-  font-size: .75rem; color: var(--muted);
+  font-size: .82rem; color: var(--muted);
   transition: color .15s, background .15s;
 }
-.act-btn:hover { color: var(--cream); background: rgba(255,255,255,0.08); }
+.act-btn:hover { color: var(--cream); background: rgba(255,255,255,0.10); }
 .act-btn.hl-active { color: var(--orange); }
 .act-btn.must-active { color: var(--gold); }
+.act-btn.back { color: var(--violet); }
+.act-btn.back:hover { color: var(--cream); background: rgba(154,138,200,0.15); }
 .act-btn.del { color: var(--muted); }
 .act-btn.del:hover { color: var(--red); }
 
@@ -242,16 +245,21 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 
 .serie-title { font-family: 'EB Garamond', serif; font-style: italic; font-size: 1rem; }
 .serie-year { font-size: .72rem; color: var(--muted); }
-.serie-ep { font-size: .68rem; color: var(--orange); margin-top: .1rem; letter-spacing: .04em; }
-.ep-tracker { display: flex; align-items: center; gap: .2rem; flex-shrink: 0; }
+.serie-ep { font-size: .68rem; color: var(--orange); margin-top: .12rem; letter-spacing: .03em; }
+.ep-tracker { display: flex; align-items: center; gap: .55rem; flex-shrink: 0; margin-right: .3rem; }
+.ep-group { display: flex; align-items: center; gap: .2rem; }
+.ep-label {
+  font-size: .62rem; font-weight: 600; letter-spacing: .06em;
+  color: var(--muted); text-transform: uppercase; min-width: 14px;
+}
 .ep-btn {
-  width: 20px; height: 20px; border-radius: 3px;
-  background: rgba(224,120,56,0.15); border: 1px solid rgba(224,120,56,0.3);
+  width: 22px; height: 22px; border-radius: 4px;
+  background: rgba(224,120,56,0.12); border: 1px solid rgba(224,120,56,0.25);
   color: var(--orange); font-size: .85rem; line-height: 1;
   display: flex; align-items: center; justify-content: center;
-  transition: background .15s;
+  transition: background .15s, border-color .15s;
 }
-.ep-btn:hover { background: rgba(224,120,56,0.3); }
+.ep-btn:hover { background: rgba(224,120,56,0.28); border-color: rgba(224,120,56,0.5); }
 
 /* Series tab header */
 .series-header { text-align: center; padding: 1.5rem 0 1.5rem; }
@@ -606,7 +614,7 @@ const S = {
   must:      load('wl-must-v1', {}),
   series:    load('wl-series-v2', {}),
   seriesHl:  load('wl-series-hl-v1', {}),
-  seriesEp:  load('wl-series-ep-v1', {})
+  seriesProgress: load('wl-series-progress-v1', {})
 };
 
 // Track which categories are open
@@ -769,23 +777,32 @@ function renderSeriesRow(serie, sectionId) {
   const cls = ['serie-item', done ? 'done' : '', hl ? 'highlighted' : ''].filter(Boolean).join(' ');
   const canMove = sectionId === 'acommencer' || sectionId === 'animation';
   const isEncours = sectionId === 'encours';
-  const ep = S.seriesEp[k] || 0;
+  const prog = S.seriesProgress[k] || {season: 1, ep: 0};
 
   return `<div class="${cls}">
     <button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>
     <div class="film-info">
       <div class="serie-title">${esc(serie.t)}</div>
-      ${isEncours ? `<div class="serie-ep">Épisode ${ep}</div>` : ''}
+      ${isEncours ? `<div class="serie-ep">Saison ${prog.season} · Épisode ${prog.ep}</div>` : ''}
     </div>
     <div class="film-meta">
       ${serie.y ? `<span class="serie-year">${serie.y}</span>` : ''}
       ${isEncours ? `<div class="ep-tracker">
-        <button class="ep-btn" data-action="ep-dec" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Épisode précédent">−</button>
-        <button class="ep-btn" data-action="ep-inc" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Épisode suivant">＋</button>
+        <div class="ep-group">
+          <span class="ep-label">S</span>
+          <button class="ep-btn" data-action="season-dec" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Saison précédente">−</button>
+          <button class="ep-btn" data-action="season-inc" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Saison suivante">＋</button>
+        </div>
+        <div class="ep-group">
+          <span class="ep-label">Ép</span>
+          <button class="ep-btn" data-action="ep-dec" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Épisode précédent">−</button>
+          <button class="ep-btn" data-action="ep-inc" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Épisode suivant">＋</button>
+        </div>
       </div>` : ''}
       <div class="actions">
         <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
-        ${canMove ? `<button class="act-btn" data-action="move-encours" data-section="${sectionId}" data-title="${esc(serie.t)}" title="En cours">▶</button>` : ''}
+        ${canMove ? `<button class="act-btn" data-action="move-encours" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Déplacer en cours">▶</button>` : ''}
+        ${isEncours ? `<button class="act-btn back" data-action="move-back" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remettre dans la liste">↩</button>` : ''}
         <button class="act-btn del" data-action="delete-serie" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
       </div>
     </div>
@@ -1020,13 +1037,32 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  if (action === 'ep-inc' || action === 'ep-dec') {
+  if (action === 'ep-inc' || action === 'ep-dec' || action === 'season-inc' || action === 'season-dec') {
     const k = key(sectionId, title);
-    const cur = S.seriesEp[k] || 0;
-    const next = action === 'ep-inc' ? cur + 1 : Math.max(0, cur - 1);
-    S.seriesEp[k] = next;
-    save('wl-series-ep-v1', S.seriesEp);
+    const prog = S.seriesProgress[k] || {season: 1, ep: 0};
+    if (action === 'ep-inc') prog.ep += 1;
+    else if (action === 'ep-dec') prog.ep = Math.max(0, prog.ep - 1);
+    else if (action === 'season-inc') { prog.season += 1; prog.ep = 0; }
+    else if (action === 'season-dec') { prog.season = Math.max(1, prog.season - 1); prog.ep = 0; }
+    S.seriesProgress[k] = prog;
+    save('wl-series-progress-v1', S.seriesProgress);
     rerenderSection(sectionId);
+    return;
+  }
+
+  if (action === 'move-back') {
+    const fromList = S.series['encours'] || [];
+    const idx = fromList.findIndex(s => s.t === title);
+    if (idx < 0) return;
+    const [serie] = fromList.splice(idx, 1);
+    S.series['encours'] = fromList;
+    const dest = serie.fromSection || 'acommencer';
+    const {fromSection, ...serieClean} = serie;
+    if (!S.series[dest]) S.series[dest] = [];
+    S.series[dest].push(serieClean);
+    save('wl-series-v2', S.series);
+    rerenderSection('encours');
+    rerenderSection(dest);
     return;
   }
 
@@ -1037,7 +1073,7 @@ document.addEventListener('click', async (e) => {
     const [serie] = fromList.splice(idx, 1);
     S.series[sectionId] = fromList;
     if (!S.series.encours) S.series.encours = [];
-    S.series.encours.push({...serie, done: false});
+    S.series.encours.push({...serie, done: false, fromSection: sectionId});
     save('wl-series-v2', S.series);
     rerenderSection(sectionId);
     rerenderSection('encours');
