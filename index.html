@@ -358,7 +358,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .series-header h2 { font-family: 'EB Garamond', serif; font-size: 1.8rem; }
 .series-header p { color: var(--muted); font-size: .85rem; margin-top: .3rem; }
 
-/* ===== Popup info film (Wikipedia) ===== */
+/* ===== Popup info film ===== */
 .film-title-btn {
   background: none; border: none; color: inherit;
   font-family: inherit; font-size: inherit; font-style: inherit;
@@ -380,29 +380,25 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   display: flex; flex-direction: column;
 }
 .film-info-card-top {
-  display: flex; gap: 1rem; padding: 1.2rem;
+  padding: 1.3rem 1.3rem .8rem;
+  border-bottom: 1px solid var(--border);
 }
-.film-info-poster {
-  width: 90px; height: 130px; border-radius: 7px;
-  object-fit: cover; flex-shrink: 0;
-  background: rgba(255,255,255,0.07);
-}
-.film-info-poster-placeholder {
-  width: 90px; height: 130px; border-radius: 7px;
-  background: rgba(255,255,255,0.07); flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 2rem; color: var(--muted);
-}
-.film-info-meta { display: flex; flex-direction: column; gap: .3rem; }
+.film-info-meta { display: flex; flex-direction: column; gap: .35rem; }
 .film-info-meta h2 {
-  font-family: 'EB Garamond', serif; font-size: 1.25rem;
-  line-height: 1.3; color: var(--cream);
+  font-family: 'EB Garamond', serif; font-size: 1.45rem;
+  line-height: 1.3; color: var(--cream); font-style: italic;
 }
-.film-info-meta .fi-director { font-size: .8rem; color: var(--muted); }
+.film-info-meta .fi-sub { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.film-info-meta .fi-director { font-size: .78rem; color: var(--muted); }
 .film-info-meta .fi-year {
-  font-size: .72rem; color: var(--muted);
-  background: rgba(255,255,255,0.07); padding: .15rem .45rem;
-  border-radius: 4px; display: inline-block; margin-top: .1rem;
+  font-size: .7rem; color: var(--muted);
+  background: rgba(255,255,255,0.07); padding: .12rem .4rem;
+  border-radius: 4px;
+}
+.film-info-meta .fi-genre {
+  font-size: .7rem; color: var(--violet);
+  background: rgba(154,138,200,0.15); padding: .12rem .4rem;
+  border-radius: 4px;
 }
 .film-info-extract {
   padding: 0 1.2rem 1.2rem;
@@ -410,14 +406,17 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   opacity: .85;
 }
 .film-info-footer {
-  padding: .75rem 1.2rem;
+  padding: .75rem 1.3rem;
   border-top: 1px solid var(--border);
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem;
 }
+.film-info-links { display: flex; gap: .6rem; flex-wrap: wrap; }
 .film-info-footer a {
-  font-size: .75rem; color: var(--violet); text-decoration: none;
+  font-size: .74rem; color: var(--violet); text-decoration: none;
+  background: rgba(154,138,200,0.12); padding: .25rem .6rem;
+  border-radius: 5px; border: 1px solid rgba(154,138,200,0.2);
 }
-.film-info-footer a:hover { text-decoration: underline; }
+.film-info-footer a:hover { background: rgba(154,138,200,0.22); }
 .film-info-close {
   font-size: .78rem; color: var(--muted); cursor: pointer;
   background: none; border: 1px solid var(--border);
@@ -1076,15 +1075,22 @@ function renderSeriesRow(serie, sectionId) {
   const k = key(sectionId, serie.t);
   const done = !!serie.done;
   const hl = !!S.seriesHl[k];
+  const rating = S.ratings[k] || null;
   const cls = ['serie-item', done ? 'done' : '', hl ? 'highlighted' : ''].filter(Boolean).join(' ');
   const canMove = sectionId === 'acommencer' || sectionId === 'animation';
   const isEncours = sectionId === 'encours';
   const prog = S.seriesProgress[k] || {season: 1, ep: 0};
 
+  const ratingBtns = `<div class="rating-btns">
+    <button class="rating-btn${rating === 'liked' ? ' liked-active' : ''}" data-action="toggle-rating" data-section="${sectionId}" data-title="${esc(serie.t)}" data-value="liked" title="J'ai aimé">▲</button>
+    <button class="rating-btn${rating === 'disliked' ? ' disliked-active' : ''}" data-action="toggle-rating" data-section="${sectionId}" data-title="${esc(serie.t)}" data-value="disliked" title="Pas aimé">▼</button>
+  </div>`;
+
   return `<div class="${cls}">
     <button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>
+    ${ratingBtns}
     <div class="film-info">
-      <div class="serie-title">${esc(serie.t)}</div>
+      <button class="film-title-btn serie-title" data-action="show-film-info" data-section="${sectionId}" data-title="${esc(serie.t)}">${esc(serie.t)}</button>
       ${isEncours ? `<div class="serie-ep">Saison ${prog.season} · Épisode ${prog.ep}</div>` : ''}
     </div>
     <div class="film-meta">
@@ -1298,9 +1304,12 @@ document.addEventListener('click', async (e) => {
   }
 
   if (action === 'show-film-info') {
-    const allFilms = [...getFilms(catId), ...getSuggestions(catId)];
+    const ns = catId || sectionId;
+    const allFilms = catId
+      ? [...getFilms(catId), ...getSuggestions(catId)]
+      : (S.series[sectionId] || []);
     const film = allFilms.find(f => f.t === title);
-    if (film) showFilmInfo(film, catId);
+    if (film) showFilmInfo(film);
     return;
   }
 
@@ -1314,12 +1323,14 @@ document.addEventListener('click', async (e) => {
   }
 
   if (action === 'toggle-rating') {
-    const k = key(catId, title);
-    const value = el.dataset.value;
+    const ns = catId || sectionId;
+    const k = key(ns, title);
+    const value = btn.dataset.value;
     S.ratings[k] = S.ratings[k] === value ? null : value;
     if (!S.ratings[k]) delete S.ratings[k];
     save('wl-ratings-v1', S.ratings);
-    rerenderCategory(catId);
+    if (catId) rerenderCategory(catId);
+    else rerenderSection(sectionId);
     return;
   }
 
@@ -1407,6 +1418,7 @@ document.addEventListener('click', async (e) => {
     const idx = list.findIndex(s => s.t === title);
     if (idx >= 0) {
       list[idx].done = !list[idx].done;
+      if (!list[idx].done) { delete S.ratings[key(sectionId, title)]; save('wl-ratings-v1', S.ratings); }
       S.series[sectionId] = list;
       save('wl-series-v2', S.series);
       rerenderSection(sectionId);
@@ -1510,72 +1522,98 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-/* ===================== FILM INFO (Wikipedia) ===================== */
-const wikiCache = {};
+/* ===================== FILM / SÉRIE INFO (Claude) ===================== */
+const infoCache = {};
 
-async function fetchWikipedia(title, director) {
+async function fetchFilmInfo(title, director, year) {
   const cacheKey = title;
-  if (wikiCache[cacheKey]) return wikiCache[cacheKey];
+  if (infoCache[cacheKey]) return infoCache[cacheKey];
 
-  // Cherche d'abord en français, puis en anglais
-  for (const lang of ['fr', 'en']) {
-    try {
-      const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(title + ' film')}&limit=1&format=json&origin=*`;
-      const searchRes = await fetch(searchUrl);
-      const searchData = await searchRes.json();
-      const pageTitle = searchData[1]?.[0];
-      if (!pageTitle) continue;
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
 
-      const summaryUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`;
-      const res = await fetch(summaryUrl);
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (!data.extract) continue;
+  const who = director ? `, réalisé par ${director}` : '';
+  const when = year ? ` (${year})` : '';
+  const prompt = `Film/série : "${title}"${who}${when}.
+En 3 phrases en français, donne : l'intrigue principale, l'ambiance/atmosphère, ce qui rend cette œuvre remarquable.
+Réponds UNIQUEMENT en JSON valide : {"synopsis":"...","genre":"..."}
+Le genre doit être un ou deux mots (ex : "Drame", "SF / Horreur", "Thriller psychologique").`;
 
-      const result = {
-        extract: data.extract,
-        thumbnail: data.thumbnail?.source || null,
-        url: data.content_urls?.desktop?.page || null,
-        lang
-      };
-      wikiCache[cacheKey] = result;
-      return result;
-    } catch { continue; }
-  }
-  return null;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const match = text.match(/\{[\s\S]*?\}/);
+    if (!match) return null;
+    const result = JSON.parse(match[0]);
+    infoCache[cacheKey] = result;
+    return result;
+  } catch { return null; }
 }
 
-function showFilmInfo(film, catId) {
+function showFilmInfo(film) {
   const modal = document.getElementById('film-info-modal');
   const card = document.getElementById('film-info-card');
-  card.innerHTML = `<div class="film-info-loading">Chargement…</div>`;
+  const q = encodeURIComponent(film.t + (film.y ? ` ${film.y}` : ''));
+  const letterboxd = `https://letterboxd.com/search/${encodeURIComponent(film.t)}/`;
+  const imdb = `https://www.imdb.com/find/?q=${q}`;
+
+  card.innerHTML = `<div class="film-info-loading">Claude rédige le synopsis…</div>`;
   modal.classList.add('open');
 
-  fetchWikipedia(film.t, film.d).then(data => {
-    const thumb = data?.thumbnail
-      ? `<img class="film-info-poster" src="${data.thumbnail}" alt="${esc(film.t)}" loading="lazy">`
-      : `<div class="film-info-poster-placeholder">🎬</div>`;
-
-    const extract = data?.extract
-      ? `<div class="film-info-extract">${esc(data.extract)}</div>`
-      : `<div class="film-info-extract" style="color:var(--muted)">Aucune description disponible.</div>`;
-
-    const wikiLink = data?.url
-      ? `<a href="${data.url}" target="_blank" rel="noopener">→ Wikipedia (${data.lang})</a>`
-      : `<span></span>`;
-
+  if (!getApiKey()) {
     card.innerHTML = `
       <div class="film-info-card-top">
-        ${thumb}
         <div class="film-info-meta">
           <h2>${esc(film.t)}</h2>
-          ${film.d ? `<div class="fi-director">${esc(film.d)}</div>` : ''}
-          ${film.y ? `<div class="fi-year">${film.y}</div>` : ''}
+          <div class="fi-sub">
+            ${film.d ? `<span class="fi-director">${esc(film.d)}</span>` : ''}
+            ${film.y ? `<span class="fi-year">${film.y}</span>` : ''}
+          </div>
         </div>
       </div>
-      ${extract}
+      <div class="film-info-extract" style="color:var(--muted)">Configure ta clé API pour voir le synopsis.</div>
       <div class="film-info-footer">
-        ${wikiLink}
+        <div class="film-info-links">
+          <a href="${letterboxd}" target="_blank" rel="noopener">Letterboxd</a>
+          <a href="${imdb}" target="_blank" rel="noopener">IMDB</a>
+        </div>
+        <button class="film-info-close" onclick="closeFilmInfo()">Fermer</button>
+      </div>`;
+    return;
+  }
+
+  fetchFilmInfo(film.t, film.d, film.y).then(data => {
+    card.innerHTML = `
+      <div class="film-info-card-top">
+        <div class="film-info-meta">
+          <h2>${esc(film.t)}</h2>
+          <div class="fi-sub">
+            ${film.d ? `<span class="fi-director">${esc(film.d)}</span>` : ''}
+            ${film.y ? `<span class="fi-year">${film.y}</span>` : ''}
+            ${data?.genre ? `<span class="fi-genre">${esc(data.genre)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="film-info-extract">${data?.synopsis ? esc(data.synopsis) : '<span style="color:var(--muted)">Aucun synopsis disponible.</span>'}</div>
+      <div class="film-info-footer">
+        <div class="film-info-links">
+          <a href="${letterboxd}" target="_blank" rel="noopener">Letterboxd</a>
+          <a href="${imdb}" target="_blank" rel="noopener">IMDB</a>
+        </div>
         <button class="film-info-close" onclick="closeFilmInfo()">Fermer</button>
       </div>`;
   });
