@@ -75,12 +75,52 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .tab-content.active { display: block; }
 
 /* Films header */
-.wl-header { text-align: center; padding: 1.5rem 0 2rem; }
+.wl-header { text-align: center; padding: 1.5rem 0 2rem; position: relative; }
 .wl-header h1 { font-family: 'EB Garamond', serif; font-size: 2.2rem; color: var(--cream); }
 .wl-header p { color: var(--muted); font-size: .85rem; letter-spacing: .1em; margin-top: .3rem; }
 .stats { display: flex; justify-content: center; gap: 1.5rem; margin-top: 1rem; }
 .stat { font-size: .78rem; color: var(--muted); letter-spacing: .05em; }
 .stat strong { color: var(--cream); font-weight: 600; }
+
+/* Bouton clé API */
+.api-key-btn {
+  position: absolute; top: 1.2rem; right: 1rem;
+  font-size: .7rem; color: var(--muted); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: .3rem .6rem; cursor: pointer; letter-spacing: .04em;
+  transition: color .15s;
+}
+.api-key-btn.configured { color: var(--green); border-color: var(--green); }
+.api-key-btn:hover { color: var(--cream); }
+
+/* Modal clé API */
+.api-modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+}
+.api-modal-overlay.open { display: flex; }
+.api-modal {
+  background: #1a1828; border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.5rem; width: min(360px, 90vw);
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.api-modal h3 { font-family: 'EB Garamond', serif; font-size: 1.3rem; color: var(--cream); }
+.api-modal p { font-size: .78rem; color: var(--muted); line-height: 1.5; }
+.api-modal input {
+  width: 100%; padding: .6rem .8rem; border-radius: 7px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.05);
+  color: var(--cream); font-size: .85rem; font-family: monospace;
+}
+.api-modal input:focus { outline: none; border-color: var(--violet); }
+.api-modal-actions { display: flex; gap: .6rem; justify-content: flex-end; }
+.api-modal-actions button {
+  padding: .45rem 1rem; border-radius: 7px; font-size: .82rem; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+}
+.api-modal-actions .btn-save {
+  background: var(--violet); border-color: var(--violet); color: #fff;
+}
 
 /* Category */
 .category {
@@ -292,12 +332,28 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 
 <div id="films-tab" class="tab-content active">
   <div class="wl-header">
+    <button class="api-key-btn" id="api-key-btn" onclick="openApiModal()">⚙ Clé API</button>
     <h1>Ma Watchlist</h1>
     <p>Cinéma &middot; Collection personnelle</p>
     <div class="stats">
       <div class="stat"><strong id="stat-total">0</strong> films</div>
       <div class="stat"><strong id="stat-seen">0</strong> vus</div>
       <div class="stat"><strong id="stat-left">0</strong> à voir</div>
+    </div>
+  </div>
+
+  <!-- Modal clé API -->
+  <div class="api-modal-overlay" id="api-modal-overlay" onclick="if(event.target===this)closeApiModal()">
+    <div class="api-modal">
+      <h3>Clé API Anthropic</h3>
+      <p>Permet à Claude de générer des suggestions de films.<br>
+         Trouve ta clé sur <strong>console.anthropic.com</strong> → API Keys.<br>
+         Elle est sauvegardée uniquement sur ton appareil.</p>
+      <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
+      <div class="api-modal-actions">
+        <button onclick="closeApiModal()">Annuler</button>
+        <button class="btn-save" onclick="saveApiKey()">Sauvegarder</button>
+      </div>
     </div>
   </div>
   <div id="cats-container"></div>
@@ -853,6 +909,29 @@ function rerenderSection(sectionId) {
   el.outerHTML = renderSeriesSection(sec);
 }
 
+/* ===================== API KEY ===================== */
+function getApiKey() { return localStorage.getItem('wl-api-key') || ''; }
+function openApiModal() {
+  document.getElementById('api-key-input').value = getApiKey();
+  document.getElementById('api-modal-overlay').classList.add('open');
+}
+function closeApiModal() {
+  document.getElementById('api-modal-overlay').classList.remove('open');
+}
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (key) localStorage.setItem('wl-api-key', key);
+  else localStorage.removeItem('wl-api-key');
+  updateApiKeyBtn();
+  closeApiModal();
+}
+function updateApiKeyBtn() {
+  const btn = document.getElementById('api-key-btn');
+  if (!btn) return;
+  if (getApiKey()) { btn.classList.add('configured'); btn.textContent = '⚙ Clé API ✓'; }
+  else { btn.classList.remove('configured'); btn.textContent = '⚙ Clé API'; }
+}
+
 /* ===================== AI ===================== */
 async function callAI(catId, replacedTitle) {
   const cat = CATEGORIES.find(c => c.id === catId);
@@ -872,13 +951,35 @@ Film remplacé: ${replacedTitle}
 Suggère UN seul film différent. Réponds UNIQUEMENT avec du JSON valide:
 {"t":"titre","d":"réalisateur","y":2001}`;
 
+  const apiKey = getApiKey();
+
   try {
-    const res = await fetch('/.netlify/functions/claude', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
-    });
-    const data = await res.json();
+    let res, data;
+    if (apiKey) {
+      // Appel direct (téléphone / sans serveur)
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 150,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+    } else {
+      // Appel via serveur local (node server.js)
+      res = await fetch('/.netlify/functions/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+      });
+    }
+    data = await res.json();
     const text = data.content?.[0]?.text || '';
     const match = text.match(/\{[^}]+\}/);
     if (!match) return null;
@@ -1151,6 +1252,7 @@ document.getElementById('pwa-dismiss').addEventListener('click', () => {
 initSeriesState();
 renderFilmsTab();
 renderSeriesTab();
+updateApiKeyBtn();
 </script>
 </body>
 </html>
