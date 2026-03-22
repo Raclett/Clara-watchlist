@@ -183,6 +183,22 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   background: var(--green); border-color: var(--green); color: #fff;
 }
 
+/* Boutons de notation (visibles uniquement quand vu) */
+.rating-btns {
+  display: none; align-items: center; gap: .2rem; flex-shrink: 0;
+}
+.film-item.seen .rating-btns { display: flex; }
+.rating-btn {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .62rem; color: var(--muted); cursor: pointer;
+  background: transparent; transition: all .15s;
+}
+.rating-btn:hover { border-color: var(--cream); color: var(--cream); }
+.rating-btn.liked-active  { background: var(--green);  border-color: var(--green);  color: #fff; }
+.rating-btn.disliked-active { background: var(--red); border-color: var(--red); color: #fff; }
+
 .film-info { min-width: 0; }
 .film-title {
   font-family: 'EB Garamond', serif; font-style: italic;
@@ -680,7 +696,8 @@ const S = {
   must:      load('wl-must-v1', {}),
   series:    load('wl-series-v2', {}),
   seriesHl:  load('wl-series-hl-v1', {}),
-  seriesProgress: load('wl-series-progress-v1', {})
+  seriesProgress: load('wl-series-progress-v1', {}),
+  ratings:   load('wl-ratings-v1', {})
 };
 
 // Track which categories are open
@@ -730,6 +747,7 @@ function renderFilmRow(film, catId, isSugg) {
   const seen = !!S.seen[k];
   const hl = !!S.highlight[k];
   const must = !!S.must[k];
+  const rating = S.ratings[k] || null;
   const cls = [
     'film-item',
     seen ? 'seen' : '',
@@ -756,8 +774,14 @@ function renderFilmRow(film, catId, isSugg) {
         <button class="act-btn del" data-action="delete-film" data-cat="${catId}" data-title="${esc(film.t)}" title="Supprimer">✕</button>
       </div>`;
 
+  const ratingBtns = `<div class="rating-btns">
+    <button class="rating-btn${rating === 'liked' ? ' liked-active' : ''}" data-action="toggle-rating" data-cat="${catId}" data-title="${esc(film.t)}" data-value="liked" title="J'ai aimé">▲</button>
+    <button class="rating-btn${rating === 'disliked' ? ' disliked-active' : ''}" data-action="toggle-rating" data-cat="${catId}" data-title="${esc(film.t)}" data-value="disliked" title="Pas aimé">▼</button>
+  </div>`;
+
   return `<div class="${cls}" data-cat="${catId}" data-title="${esc(film.t)}">
     <button class="seen-btn" data-action="toggle-seen" data-cat="${catId}" data-title="${esc(film.t)}">${seen ? '✓' : ''}</button>
+    ${ratingBtns}
     <div class="film-info">
       <div class="film-title${isSugg && film.type === 'must' ? ' classic' : ''}">${esc(film.t)}</div>
       ${film.d ? `<div class="film-director">${esc(film.d)}</div>` : ''}
@@ -938,15 +962,27 @@ async function callAI(catId, replacedTitle) {
   if (!cat) return null;
   const allFilms = [...getFilms(catId), ...getSuggestions(catId)];
   const allTitles = allFilms.map(f => f.t).join(', ');
-  const disliked = (S.disliked[catId] || []).join(', ');
+
+  // Films explicitement notés par l'utilisateur après visionnage
+  const likedFilms = allFilms
+    .filter(f => S.ratings[key(catId, f.t)] === 'liked')
+    .map(f => f.t);
+  const dislikedRated = allFilms
+    .filter(f => S.ratings[key(catId, f.t)] === 'disliked')
+    .map(f => f.t);
+  const dislikedAll = [...new Set([...(S.disliked[catId] || []), ...dislikedRated])];
+
+  const likedLine = likedFilms.length
+    ? `Films que l'utilisateur a AIMÉS (s'en inspirer): ${likedFilms.join(', ')}\n` : '';
+  const dislikedLine = dislikedAll.length
+    ? `Films que l'utilisateur n'a PAS aimés (éviter le style): ${dislikedAll.join(', ')}\n` : '';
 
   const prompt = `[PROFIL UTILISATEUR]
 L'utilisateur a une watchlist cinéphile très éclectique. Drames d'auteur intimes, thrillers/crime (Scorsese, Coen, Fincher, PTA), horreur atmosphérique, cinéma psychologique/WTF (Lynch, Lanthimos), SF contemplative (Tarkovski), animation d'auteur exigeante. Cinéma européen, coréen, japonais. Préfère atmosphère, profondeur émotionnelle, ambition formelle.
 
 Catégorie: ${cat.label}
 Films déjà présents: ${allTitles}
-Films que l'utilisateur n'aime pas: ${disliked}
-Film remplacé: ${replacedTitle}
+${likedLine}${dislikedLine}Film remplacé: ${replacedTitle}
 
 Suggère UN seul film différent. Réponds UNIQUEMENT avec du JSON valide:
 {"t":"titre","d":"réalisateur","y":2001}`;
@@ -1048,8 +1084,18 @@ document.addEventListener('click', async (e) => {
   if (action === 'toggle-seen') {
     const k = key(catId, title);
     S.seen[k] = !S.seen[k];
-    if (!S.seen[k]) delete S.seen[k];
+    if (!S.seen[k]) { delete S.seen[k]; delete S.ratings[k]; save('wl-ratings-v1', S.ratings); }
     save('wl-seen-v4', S.seen);
+    rerenderCategory(catId);
+    return;
+  }
+
+  if (action === 'toggle-rating') {
+    const k = key(catId, title);
+    const value = el.dataset.value;
+    S.ratings[k] = S.ratings[k] === value ? null : value;
+    if (!S.ratings[k]) delete S.ratings[k];
+    save('wl-ratings-v1', S.ratings);
     rerenderCategory(catId);
     return;
   }
