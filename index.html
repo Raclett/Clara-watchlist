@@ -297,6 +297,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   padding: .45rem 1rem;
   border-top: 1px solid var(--border);
   transition: background .15s;
+  position: relative;
 }
 .serie-item:hover { background: rgba(224,120,56,0.06); }
 .serie-item.done { opacity: .5; }
@@ -523,6 +524,29 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   <button id="pwa-dismiss" class="act-btn">✕</button>
 </div>
 
+<!-- Modals globaux (hors onglets pour rester accessibles partout) -->
+<div class="api-modal-overlay" id="api-modal-overlay" onclick="if(event.target===this)closeApiModal()">
+  <div class="api-modal">
+    <h3>Clé API Anthropic</h3>
+    <p>Permet à Claude de générer des suggestions de films.<br>
+       Trouve ta clé sur <strong>console.anthropic.com</strong> → API Keys.<br>
+       Elle est sauvegardée uniquement sur ton appareil.</p>
+    <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
+    <div class="api-modal-actions">
+      <button onclick="closeApiModal()">Annuler</button>
+      <button class="btn-save" onclick="saveApiKey()">Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<div class="film-info-modal" id="film-info-modal" onclick="if(event.target===this)closeFilmInfo()">
+  <div class="film-info-card" id="film-info-card">
+    <div class="film-info-loading" id="film-info-loading">Chargement…</div>
+  </div>
+</div>
+
+<!-- Modal ajout global avec IA (film ou série) -->
+
 <nav class="tabs-nav">
   <button class="tab-btn active" data-tab="films">Films</button>
   <button class="tab-btn" data-tab="series">Séries</button>
@@ -538,28 +562,6 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
       <div class="stat"><strong id="stat-total">0</strong> films</div>
       <div class="stat"><strong id="stat-seen">0</strong> vus</div>
       <div class="stat"><strong id="stat-left">0</strong> à voir</div>
-    </div>
-  </div>
-
-  <!-- Modal clé API -->
-  <div class="api-modal-overlay" id="api-modal-overlay" onclick="if(event.target===this)closeApiModal()">
-    <div class="api-modal">
-      <h3>Clé API Anthropic</h3>
-      <p>Permet à Claude de générer des suggestions de films.<br>
-         Trouve ta clé sur <strong>console.anthropic.com</strong> → API Keys.<br>
-         Elle est sauvegardée uniquement sur ton appareil.</p>
-      <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
-      <div class="api-modal-actions">
-        <button onclick="closeApiModal()">Annuler</button>
-        <button class="btn-save" onclick="saveApiKey()">Sauvegarder</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal info film (Wikipedia) -->
-  <div class="film-info-modal" id="film-info-modal" onclick="if(event.target===this)closeFilmInfo()">
-    <div class="film-info-card" id="film-info-card">
-      <div class="film-info-loading" id="film-info-loading">Chargement…</div>
     </div>
   </div>
 
@@ -606,30 +608,6 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
     </div>
   </div>
 
-  <!-- Modal note écrite -->
-  <div class="note-modal-overlay" id="note-modal-overlay" onclick="if(event.target===this)closeNoteModal()">
-    <div class="note-modal">
-      <h3 id="note-modal-title"></h3>
-      <textarea id="note-textarea" placeholder="Ton avis, le contexte, avec qui tu l'as vu…"></textarea>
-      <div class="note-modal-actions">
-        <button onclick="closeNoteModal()">Annuler</button>
-        <button class="btn-save-note" onclick="saveNote()">Sauvegarder</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Mini modal : noter avant de remplacer une suggestion vue -->
-  <div class="rate-replace-overlay" id="rr-overlay">
-    <div class="rate-replace-card">
-      <p>Tu as déjà vu <strong id="rr-title"></strong>.<br>Tu l'as aimé ?</p>
-      <div class="rate-replace-btns">
-        <button class="rr-liked"    onclick="rrChoice('liked')">▲ Aimé</button>
-        <button class="rr-disliked" onclick="rrChoice('disliked')">▼ Pas aimé</button>
-        <button class="rr-skip"     onclick="rrChoice(null)">Passer</button>
-      </div>
-    </div>
-  </div>
-
   <div id="cats-container"></div>
 </div>
 
@@ -640,6 +618,30 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
     <p>Séries &middot; Collection personnelle</p>
   </div>
   <div id="series-container"></div>
+</div>
+
+<!-- Modal note écrite -->
+<div class="note-modal-overlay" id="note-modal-overlay" onclick="if(event.target===this)closeNoteModal()">
+  <div class="note-modal">
+    <h3 id="note-modal-title"></h3>
+    <textarea id="note-textarea" placeholder="Ton avis, le contexte, avec qui tu l'as vu…"></textarea>
+    <div class="note-modal-actions">
+      <button onclick="closeNoteModal()">Annuler</button>
+      <button class="btn-save-note" onclick="saveNote()">Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mini modal : noter avant de remplacer une suggestion vue -->
+<div class="rate-replace-overlay" id="rr-overlay">
+  <div class="rate-replace-card">
+    <p>Tu as déjà vu <strong id="rr-title"></strong>.<br>Tu l'as aimé ?</p>
+    <div class="rate-replace-btns">
+      <button class="rr-liked"    onclick="rrChoice('liked')">▲ Aimé</button>
+      <button class="rr-disliked" onclick="rrChoice('disliked')">▼ Pas aimé</button>
+      <button class="rr-skip"     onclick="rrChoice(null)">Passer</button>
+    </div>
+  </div>
 </div>
 
 <script>
