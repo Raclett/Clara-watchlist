@@ -403,8 +403,21 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .film-info-card-top {
   padding: 1.3rem 1.3rem .8rem;
   border-bottom: 1px solid var(--border);
+  display: flex; gap: 1rem; align-items: flex-start;
 }
-.film-info-meta { display: flex; flex-direction: column; gap: .35rem; }
+.fi-poster { flex-shrink: 0; }
+.fi-poster img {
+  width: 78px; border-radius: 7px; display: block;
+  object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+.fi-poster-placeholder {
+  width: 78px; height: 116px; border-radius: 7px;
+  background: rgba(255,255,255,0.05);
+  border: 1px dashed var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 1.6rem;
+}
+.film-info-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .35rem; }
 .film-info-meta h2 {
   font-family: 'EB Garamond', serif; font-size: 1.45rem;
   line-height: 1.3; color: var(--cream); font-style: italic;
@@ -632,6 +645,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 
 <div id="series-tab" class="tab-content">
   <div class="series-header">
+    <button class="global-add-btn" onclick="openGlobalAdd('serie')">＋ Ajouter une série</button>
     <h2>Mes Séries</h2>
     <p>Séries &middot; Collection personnelle</p>
   </div>
@@ -895,8 +909,14 @@ const CATEGORIES = [
 ];
 
 const SERIES_SECTIONS = [
-  { id: 'acommencer', label: 'A COMMENCER' },
-  { id: 'animation', label: 'ANIMATION' },
+  { id: 'acommencer', label: 'A COMMENCER', suggestions: [
+    {t:'The Bear',y:2022},{t:'Severance',y:2022},{t:'The Rehearsal',y:2022},
+    {t:'Fleabag',y:2016},{t:'Mindhunter',y:2017},{t:'Beef',y:2023}
+  ]},
+  { id: 'animation', label: 'ANIMATION', suggestions: [
+    {t:'Arcane',y:2021},{t:'Blue Eye Samurai',y:2023},
+    {t:'Undone',y:2019},{t:'Pantheon',y:2022}
+  ]},
   { id: 'encours', label: 'EN COURS' }
 ];
 
@@ -952,8 +972,9 @@ const S = {
   series:    load('wl-series-v2', {}),
   seriesHl:  load('wl-series-hl-v1', {}),
   seriesProgress: load('wl-series-progress-v1', {}),
-  ratings:   load('wl-ratings-v1', {}),
-  notes:     load('wl-notes-v1', {})
+  ratings:    load('wl-ratings-v1', {}),
+  notes:      load('wl-notes-v1', {}),
+  suggSeries: load('wl-sugg-series-v1', {})
 };
 
 // Track which categories are open
@@ -987,6 +1008,66 @@ function getSeriesList(sectionId) {
   if (S.series[sectionId]) return S.series[sectionId];
   const def = SERIES_DEFAULT[sectionId] || [];
   return def.map(s => ({...s, done: false}));
+}
+
+function getSeriesSuggestions(sectionId) {
+  if (S.suggSeries[sectionId]) return S.suggSeries[sectionId];
+  const sec = SERIES_SECTIONS.find(s => s.id === sectionId);
+  return sec?.suggestions || [];
+}
+
+async function callAIForSerie(sectionId, replacedTitle) {
+  const sec = SERIES_SECTIONS.find(s => s.id === sectionId);
+  if (!sec || !sec.suggestions) return null;
+  const list = S.series[sectionId] || [];
+  const allSuggs = getSeriesSuggestions(sectionId);
+  const allTitles = [...list, ...allSuggs].map(s => s.t).join(', ');
+  const likedTitles = [...list, ...allSuggs].filter(s => S.ratings[key(sectionId, s.t)] === 'liked').map(s => s.t);
+  const likedLine = likedTitles.length ? `Séries appréciées: ${likedTitles.join(', ')}\n` : '';
+  const prompt = `[PROFIL UTILISATEUR] Séries de qualité, drames, thrillers, SF, animation exigeante, humour absurde, cinéma sériel ambitieux (HBO, A24, FX, BBC). Préfère la profondeur narrative, l'originalité formelle, les performances.
+
+Section: ${sec.label}
+Séries déjà présentes: ${allTitles}
+${likedLine}Série remplacée: ${replacedTitle}
+
+Suggère UNE seule série différente. Réponds UNIQUEMENT avec du JSON valide:
+{"t":"titre","y":2021}`;
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 80, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const match = text.match(/\{[^}]+\}/);
+    if (!match) return null;
+    return JSON.parse(match[0]);
+  } catch { return null; }
+}
+
+async function replaceSeriesSugg(sectionId, oldTitle, btn) {
+  if (btn) { btn.classList.add('loading'); }
+  const suggs = getSeriesSuggestions(sectionId).filter(s => s.t !== oldTitle);
+  S.suggSeries[sectionId] = suggs;
+  const newSerie = await callAIForSerie(sectionId, oldTitle);
+  if (newSerie) S.suggSeries[sectionId] = [...suggs, newSerie];
+  save('wl-sugg-series-v1', S.suggSeries);
+  rerenderSection(sectionId);
+}
+
+async function promoteSeriesSugg(sectionId, serie) {
+  if (!S.series[sectionId]) S.series[sectionId] = [];
+  S.series[sectionId].push({ t: serie.t, y: serie.y, done: false });
+  save('wl-series-v2', S.series);
+  const suggs = getSeriesSuggestions(sectionId).filter(s => s.t !== serie.t);
+  S.suggSeries[sectionId] = suggs;
+  const newSerie = await callAIForSerie(sectionId, serie.t);
+  if (newSerie) S.suggSeries[sectionId] = [...suggs, newSerie];
+  save('wl-sugg-series-v1', S.suggSeries);
+  rerenderSection(sectionId);
 }
 
 function initSeriesState() {
@@ -1111,7 +1192,7 @@ function updateStats() {
 }
 
 /* ===================== RENDER SERIES ===================== */
-function renderSeriesRow(serie, sectionId) {
+function renderSeriesRow(serie, sectionId, isSugg = false) {
   const k = key(sectionId, serie.t);
   const done = !!serie.done;
   const hl = !!S.seriesHl[k];
@@ -1150,13 +1231,16 @@ function renderSeriesRow(serie, sectionId) {
           <button class="ep-btn" data-action="ep-inc" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Épisode suivant">＋</button>
         </div>
       </div>` : ''}
-      <div class="actions">
+      ${isSugg ? `<div class="actions">
+        <button class="act-btn" data-action="promote-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" data-year="${serie.y||''}" title="Ajouter à ma liste">＋</button>
+        <button class="act-btn" data-action="replace-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remplacer">↻</button>
+      </div>` : `<div class="actions">
         <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
         <button class="act-btn${noteCls}" data-action="show-note" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Note">✎</button>
         ${canMove ? `<button class="act-btn" data-action="move-encours" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Déplacer en cours">▶</button>` : ''}
         ${isEncours ? `<button class="act-btn back" data-action="move-back" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remettre dans la liste">↩</button>` : ''}
         <button class="act-btn del" data-action="delete-serie" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
-      </div>
+      </div>`}
     </div>
   </div>`;
 }
@@ -1167,13 +1251,16 @@ function renderSeriesSection(sec) {
   const rest = list.filter(s => !S.seriesHl[key(sec.id, s.t)]);
   const sorted = [...hl, ...rest];
   const doneCount = list.filter(s => s.done).length;
+  const hasSugg = !!sec.suggestions;
+  const suggs = hasSugg ? getSeriesSuggestions(sec.id) : [];
 
   return `<div class="series-section" id="sec-${sec.id}">
     <div class="section-header">
       <span>${esc(sec.label)}</span>
       <span class="section-count">${doneCount} / ${list.length}</span>
     </div>
-    ${sorted.map(s => renderSeriesRow(s, sec.id)).join('')}
+    ${sorted.map(s => renderSeriesRow(s, sec.id, false)).join('')}
+    ${hasSugg ? `<div class="sugg-sep">Suggestions</div>${suggs.map(s => renderSeriesRow(s, sec.id, true)).join('')}` : ''}
   </div>`;
 }
 
@@ -1505,6 +1592,17 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  if (action === 'replace-serie-sugg') {
+    replaceSeriesSugg(sectionId, title, btn);
+    return;
+  }
+
+  if (action === 'promote-serie-sugg') {
+    const serie = { t: title, y: parseInt(btn.dataset.year) || null };
+    promoteSeriesSugg(sectionId, serie);
+    return;
+  }
+
 });
 
 /* ===================== TABS ===================== */
@@ -1559,6 +1657,28 @@ Le genre doit être un ou deux mots (ex : "Drame", "SF / Horreur", "Thriller psy
   } catch { return null; }
 }
 
+const posterCache = {};
+async function fetchPoster(title, year) {
+  const k = title + (year || '');
+  if (posterCache[k] !== undefined) return posterCache[k];
+  // Essayer plusieurs formes du titre Wikipedia
+  const tries = [title, `${title} (film)`, `${title} (TV series)`, `${title} (série télévisée)`];
+  for (const t of tries.slice(0, 3)) {
+    try {
+      const url = `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&titles=${encodeURIComponent(t)}&format=json&pithumbsize=300&origin=*&redirects=1`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const pages = data.query?.pages;
+      if (pages) {
+        const page = Object.values(pages)[0];
+        if (page.thumbnail?.source) { posterCache[k] = page.thumbnail.source; return posterCache[k]; }
+      }
+    } catch {}
+  }
+  posterCache[k] = null;
+  return null;
+}
+
 function showFilmInfo(film) {
   const modal = document.getElementById('film-info-modal');
   const card = document.getElementById('film-info-card');
@@ -1566,34 +1686,16 @@ function showFilmInfo(film) {
   const letterboxd = `https://letterboxd.com/search/${encodeURIComponent(film.t)}/`;
   const imdb = `https://www.imdb.com/find/?q=${q}`;
 
-  card.innerHTML = `<div class="film-info-loading">Claude rédige le synopsis…</div>`;
+  card.innerHTML = `<div class="film-info-loading">Chargement…</div>`;
   modal.classList.add('open');
 
-  if (!getApiKey()) {
-    card.innerHTML = `
+  function buildCard(data, posterUrl) {
+    const posterHtml = posterUrl
+      ? `<div class="fi-poster"><img src="${posterUrl}" alt="${esc(film.t)}" loading="lazy"></div>`
+      : `<div class="fi-poster"><div class="fi-poster-placeholder">🎬</div></div>`;
+    return `
       <div class="film-info-card-top">
-        <div class="film-info-meta">
-          <h2>${esc(film.t)}</h2>
-          <div class="fi-sub">
-            ${film.d ? `<span class="fi-director">${esc(film.d)}</span>` : ''}
-            ${film.y ? `<span class="fi-year">${film.y}</span>` : ''}
-          </div>
-        </div>
-      </div>
-      <div class="film-info-extract" style="color:var(--muted)">Configure ta clé API pour voir le synopsis.</div>
-      <div class="film-info-footer">
-        <div class="film-info-links">
-          <a href="${letterboxd}" target="_blank" rel="noopener">Letterboxd</a>
-          <a href="${imdb}" target="_blank" rel="noopener">IMDB</a>
-        </div>
-        <button class="film-info-close" onclick="closeFilmInfo()">Fermer</button>
-      </div>`;
-    return;
-  }
-
-  fetchFilmInfo(film.t, film.d, film.y).then(data => {
-    card.innerHTML = `
-      <div class="film-info-card-top">
+        ${posterHtml}
         <div class="film-info-meta">
           <h2>${esc(film.t)}</h2>
           <div class="fi-sub">
@@ -1603,7 +1705,7 @@ function showFilmInfo(film) {
           </div>
         </div>
       </div>
-      <div class="film-info-extract">${data?.synopsis ? esc(data.synopsis) : '<span style="color:var(--muted)">Aucun synopsis disponible.</span>'}</div>
+      <div class="film-info-extract">${data?.synopsis ? esc(data.synopsis) : '<span style="color:var(--muted)">' + (getApiKey() ? 'Aucun synopsis disponible.' : 'Configure ta clé API pour voir le synopsis.') + '</span>'}</div>
       <div class="film-info-footer">
         <div class="film-info-links">
           <a href="${letterboxd}" target="_blank" rel="noopener">Letterboxd</a>
@@ -1611,6 +1713,16 @@ function showFilmInfo(film) {
         </div>
         <button class="film-info-close" onclick="closeFilmInfo()">Fermer</button>
       </div>`;
+  }
+
+  // Lancer poster + synopsis en parallèle (poster gratuit, synopsis nécessite API)
+  const posterPromise = fetchPoster(film.t, film.y);
+  if (!getApiKey()) {
+    posterPromise.then(posterUrl => { card.innerHTML = buildCard(null, posterUrl); });
+    return;
+  }
+  Promise.all([fetchFilmInfo(film.t, film.d, film.y), posterPromise]).then(([data, posterUrl]) => {
+    card.innerHTML = buildCard(data, posterUrl);
   });
 }
 
@@ -1620,6 +1732,12 @@ function closeFilmInfo() {
 
 /* ===================== AJOUT GLOBAL AVEC IA ===================== */
 let gaCurrentType = 'film';
+function clearAutoConfirm() {
+  clearInterval(window._gaAutoConfirmTimer);
+  window._gaAutoConfirmTimer = null;
+  const s = document.getElementById('ga-status');
+  if (s) s.textContent = '';
+}
 
 function gaSetType(type) {
   gaCurrentType = type;
@@ -1639,8 +1757,8 @@ function gaSetType(type) {
   });
 }
 
-function openGlobalAdd() {
-  gaSetType('film');
+function openGlobalAdd(type = 'film') {
+  gaSetType(type);
   document.getElementById('ga-title').value = '';
   document.getElementById('ga-dir').value = '';
   document.getElementById('ga-year').value = '';
@@ -1651,6 +1769,7 @@ function openGlobalAdd() {
 }
 
 function closeGlobalAdd() {
+  clearAutoConfirm();
   document.getElementById('global-add-modal').classList.remove('open');
 }
 
@@ -1706,7 +1825,14 @@ Réponds UNIQUEMENT en JSON valide: {"y":2020,"cat":"acommencer"}`;
         if (parsed.y) document.getElementById('ga-year-serie').value = parsed.y;
       }
       if (parsed.cat) document.getElementById('ga-cat').value = parsed.cat;
-      status.textContent = '✓ Complété par Claude — vérifie et confirme.';
+      // Auto-confirm après 1.5s avec possibilité d'annuler
+      let countdown = 2;
+      status.innerHTML = `✓ Classé par l\'IA — ajout dans <strong>${countdown}s</strong>… <button onclick="clearAutoConfirm()" style="color:var(--orange);margin-left:.3rem;font-size:.75rem">Annuler</button>`;
+      window._gaAutoConfirmTimer = setInterval(() => {
+        countdown--;
+        if (countdown <= 0) { clearAutoConfirm(); gaConfirm(); }
+        else status.innerHTML = `✓ Classé par l\'IA — ajout dans <strong>${countdown}s</strong>… <button onclick="clearAutoConfirm()" style="color:var(--orange);margin-left:.3rem;font-size:.75rem">Annuler</button>`;
+      }, 1000);
     } else {
       status.textContent = 'Réponse inattendue. Remplis manuellement.';
     }
