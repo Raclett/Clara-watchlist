@@ -322,7 +322,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .ep-btn:hover { background: rgba(224,120,56,0.28); border-color: rgba(224,120,56,0.5); }
 
 /* Series tab header */
-.series-header { text-align: center; padding: 1.5rem 0 1.5rem; }
+.series-header { text-align: center; padding: 1.5rem 0 1.5rem; position: relative; }
 .series-header h2 { font-family: 'EB Garamond', serif; font-size: 1.8rem; }
 .series-header p { color: var(--muted); font-size: .85rem; margin-top: .3rem; }
 
@@ -403,19 +403,6 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .film-info-card-top {
   padding: 1.3rem 1.3rem .8rem;
   border-bottom: 1px solid var(--border);
-  display: flex; gap: 1rem; align-items: flex-start;
-}
-.fi-poster { flex-shrink: 0; }
-.fi-poster img {
-  width: 78px; border-radius: 7px; display: block;
-  object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,.4);
-}
-.fi-poster-placeholder {
-  width: 78px; height: 116px; border-radius: 7px;
-  background: rgba(255,255,255,0.05);
-  border: 1px dashed var(--border);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--muted); font-size: 1.6rem;
 }
 .film-info-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .35rem; }
 .film-info-meta h2 {
@@ -1210,8 +1197,8 @@ function renderSeriesRow(serie, sectionId, isSugg = false) {
   </div>`;
 
   return `<div class="${cls}">
-    <button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>
-    ${ratingBtns}
+    ${isSugg ? '' : `<button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>`}
+    ${isSugg ? '' : ratingBtns}
     <div class="film-info">
       <button class="film-title-btn serie-title" data-action="show-film-info" data-section="${sectionId}" data-title="${esc(serie.t)}">${esc(serie.t)}</button>
       ${isEncours ? `<div class="serie-ep">Saison ${prog.season} · Épisode ${prog.ep}</div>` : ''}
@@ -1643,41 +1630,28 @@ Le genre doit être un ou deux mots (ex : "Drame", "SF / Horreur", "Thriller psy
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
+        max_tokens: 500,
         messages: [{ role: 'user', content: prompt }]
       })
     });
     const data = await res.json();
     const text = data.content?.[0]?.text || '';
-    const match = text.match(/\{[\s\S]*?\}/);
-    if (!match) return null;
-    const result = JSON.parse(match[0]);
-    infoCache[cacheKey] = result;
-    return result;
+    // Extraction JSON robuste : JSON direct → blocs markdown → regex greedy
+    let result = null;
+    try { result = JSON.parse(text.trim()); } catch {}
+    if (!result) {
+      const stripped = text.replace(/```(?:json)?\s*([\s\S]*?)```/g, '$1').trim();
+      try { result = JSON.parse(stripped); } catch {}
+      if (!result) {
+        const m = stripped.match(/\{[\s\S]*\}/);
+        if (m) try { result = JSON.parse(m[0]); } catch {}
+      }
+    }
+    if (result) { infoCache[cacheKey] = result; return result; }
+    return null;
   } catch { return null; }
 }
 
-const posterCache = {};
-async function fetchPoster(title, year) {
-  const k = title + (year || '');
-  if (posterCache[k] !== undefined) return posterCache[k];
-  // Essayer plusieurs formes du titre Wikipedia
-  const tries = [title, `${title} (film)`, `${title} (TV series)`, `${title} (série télévisée)`];
-  for (const t of tries.slice(0, 3)) {
-    try {
-      const url = `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&titles=${encodeURIComponent(t)}&format=json&pithumbsize=300&origin=*&redirects=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const pages = data.query?.pages;
-      if (pages) {
-        const page = Object.values(pages)[0];
-        if (page.thumbnail?.source) { posterCache[k] = page.thumbnail.source; return posterCache[k]; }
-      }
-    } catch {}
-  }
-  posterCache[k] = null;
-  return null;
-}
 
 function showFilmInfo(film) {
   const modal = document.getElementById('film-info-modal');
@@ -1689,13 +1663,9 @@ function showFilmInfo(film) {
   card.innerHTML = `<div class="film-info-loading">Chargement…</div>`;
   modal.classList.add('open');
 
-  function buildCard(data, posterUrl) {
-    const posterHtml = posterUrl
-      ? `<div class="fi-poster"><img src="${posterUrl}" alt="${esc(film.t)}" loading="lazy"></div>`
-      : `<div class="fi-poster"><div class="fi-poster-placeholder">🎬</div></div>`;
+  function buildCard(data) {
     return `
       <div class="film-info-card-top">
-        ${posterHtml}
         <div class="film-info-meta">
           <h2>${esc(film.t)}</h2>
           <div class="fi-sub">
@@ -1715,15 +1685,8 @@ function showFilmInfo(film) {
       </div>`;
   }
 
-  // Lancer poster + synopsis en parallèle (poster gratuit, synopsis nécessite API)
-  const posterPromise = fetchPoster(film.t, film.y);
-  if (!getApiKey()) {
-    posterPromise.then(posterUrl => { card.innerHTML = buildCard(null, posterUrl); });
-    return;
-  }
-  Promise.all([fetchFilmInfo(film.t, film.d, film.y), posterPromise]).then(([data, posterUrl]) => {
-    card.innerHTML = buildCard(data, posterUrl);
-  });
+  if (!getApiKey()) { card.innerHTML = buildCard(null); return; }
+  fetchFilmInfo(film.t, film.d, film.y).then(data => { card.innerHTML = buildCard(data); });
 }
 
 function closeFilmInfo() {
