@@ -273,38 +273,6 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .act-btn.loading { pointer-events: none; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Add form */
-.add-form {
-  display: none; padding: .5rem 1rem .75rem;
-  border-top: 1px solid var(--border);
-  gap: .4rem; flex-wrap: wrap; align-items: center;
-}
-.add-form.visible { display: flex; }
-.add-form input {
-  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
-  border-radius: 5px; color: var(--cream); font-family: 'Nunito', sans-serif;
-  font-size: .8rem; padding: .3rem .6rem; outline: none;
-}
-.add-form input:focus { border-color: var(--orange); }
-.add-form input::placeholder { color: var(--muted); }
-.add-form .inp-title { flex: 2; min-width: 130px; }
-.add-form .inp-dir { flex: 1.5; min-width: 110px; }
-.add-form .inp-year { width: 70px; }
-.add-form .btn-submit {
-  background: var(--orange); color: #fff; font-weight: 600;
-  font-size: .75rem; padding: .3rem .7rem; border-radius: 5px;
-}
-.add-form .btn-cancel { font-size: .75rem; color: var(--muted); padding: .3rem .5rem; }
-
-.add-trigger {
-  display: flex; align-items: center; gap: .4rem;
-  width: 100%; padding: .5rem 1rem;
-  font-size: .75rem; color: var(--muted);
-  border-top: 1px solid var(--border);
-  transition: color .15s;
-  cursor: pointer;
-}
-.add-trigger:hover { color: var(--orange); }
 
 /* Series */
 .series-section {
@@ -357,6 +325,59 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .series-header { text-align: center; padding: 1.5rem 0 1.5rem; }
 .series-header h2 { font-family: 'EB Garamond', serif; font-size: 1.8rem; }
 .series-header p { color: var(--muted); font-size: .85rem; margin-top: .3rem; }
+
+/* Notes écrites */
+.note-preview {
+  font-size: .7rem; color: var(--muted); font-style: italic;
+  margin-top: .15rem; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 200px;
+}
+.act-btn.note-active { color: var(--orange); }
+
+/* Modal note */
+.note-modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center; padding: 1rem;
+}
+.note-modal-overlay.open { display: flex; }
+.note-modal {
+  background: #1a1828; border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.4rem; width: min(380px, 100%);
+  display: flex; flex-direction: column; gap: .85rem;
+}
+.note-modal h3 {
+  font-family: 'EB Garamond', serif; font-size: 1.15rem;
+  color: var(--cream); font-style: italic;
+}
+.note-modal textarea {
+  width: 100%; min-height: 100px; resize: vertical;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  border-radius: 7px; color: var(--cream); font-family: 'Nunito', sans-serif;
+  font-size: .85rem; padding: .55rem .75rem; outline: none; line-height: 1.5;
+}
+.note-modal textarea:focus { border-color: var(--violet); }
+.note-modal textarea::placeholder { color: var(--muted); }
+.note-modal-actions { display: flex; gap: .6rem; justify-content: flex-end; }
+.note-modal-actions button {
+  padding: .4rem .9rem; border-radius: 7px; font-size: .82rem;
+  cursor: pointer; border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+}
+.note-modal-actions .btn-save-note {
+  background: var(--orange); border-color: var(--orange); color: #fff;
+}
+
+/* Toggle Film/Série dans modal ajout global */
+.ga-type-toggle {
+  display: flex; gap: 0; border: 1px solid var(--border); border-radius: 7px; overflow: hidden;
+}
+.ga-type-btn {
+  flex: 1; padding: .4rem; font-size: .8rem; cursor: pointer;
+  background: transparent; color: var(--muted); border: none;
+  transition: all .15s;
+}
+.ga-type-btn.active { background: var(--violet); color: #fff; }
 
 /* ===== Popup info film ===== */
 .film-title-btn {
@@ -539,10 +560,13 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
     </div>
   </div>
 
-  <!-- Modal ajout global avec IA -->
+  <!-- Modal ajout global avec IA (film ou série) -->
   <div class="global-add-modal" id="global-add-modal" onclick="if(event.target===this)closeGlobalAdd()">
     <div class="global-add-card">
-      <h3>Ajouter un film</h3>
+      <div class="ga-type-toggle">
+        <button class="ga-type-btn active" id="ga-type-film" onclick="gaSetType('film')">Film</button>
+        <button class="ga-type-btn" id="ga-type-serie" onclick="gaSetType('serie')">Série</button>
+      </div>
       <div class="ga-ai-row">
         <div class="ga-field">
           <label class="ga-label">TITRE</label>
@@ -551,7 +575,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
         </div>
         <button class="ga-ai-btn" id="ga-ai-btn" onclick="gaAutoFill()">✨ IA</button>
       </div>
-      <div class="ga-row">
+      <div class="ga-row" id="ga-dir-row">
         <div class="ga-field">
           <label class="ga-label">RÉALISATEUR</label>
           <input class="ga-input" id="ga-dir" placeholder="—">
@@ -561,14 +585,32 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
           <input class="ga-input" id="ga-year" placeholder="—" type="number">
         </div>
       </div>
+      <div class="ga-row" id="ga-year-only-row" style="display:none">
+        <div class="ga-field" style="max-width:90px">
+          <label class="ga-label">ANNÉE</label>
+          <input class="ga-input" id="ga-year-serie" placeholder="—" type="number">
+        </div>
+      </div>
       <div class="ga-field">
-        <label class="ga-label">CATÉGORIE</label>
+        <label class="ga-label" id="ga-cat-label">CATÉGORIE</label>
         <select class="ga-cat-select" id="ga-cat"></select>
       </div>
       <div class="ga-status" id="ga-status"></div>
       <div class="ga-actions">
         <button onclick="closeGlobalAdd()">Annuler</button>
         <button class="ga-save" onclick="gaConfirm()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal note écrite -->
+  <div class="note-modal-overlay" id="note-modal-overlay" onclick="if(event.target===this)closeNoteModal()">
+    <div class="note-modal">
+      <h3 id="note-modal-title"></h3>
+      <textarea id="note-textarea" placeholder="Ton avis, le contexte, avec qui tu l'as vu…"></textarea>
+      <div class="note-modal-actions">
+        <button onclick="closeNoteModal()">Annuler</button>
+        <button class="btn-save-note" onclick="saveNote()">Sauvegarder</button>
       </div>
     </div>
   </div>
@@ -910,7 +952,8 @@ const S = {
   series:    load('wl-series-v2', {}),
   seriesHl:  load('wl-series-hl-v1', {}),
   seriesProgress: load('wl-series-progress-v1', {}),
-  ratings:   load('wl-ratings-v1', {})
+  ratings:   load('wl-ratings-v1', {}),
+  notes:     load('wl-notes-v1', {})
 };
 
 // Track which categories are open
@@ -961,6 +1004,7 @@ function renderFilmRow(film, catId, isSugg) {
   const hl = !!S.highlight[k];
   const must = !!S.must[k];
   const rating = S.ratings[k] || null;
+  const note = S.notes[k] || '';
   const cls = [
     'film-item',
     seen ? 'seen' : '',
@@ -973,16 +1017,19 @@ function renderFilmRow(film, catId, isSugg) {
 
   const hlCls = hl ? ' hl-active' : '';
   const mustCls = must ? ' must-active' : '';
+  const noteCls = note ? ' note-active' : '';
 
   const actions = isSugg
     ? `<div class="actions">
         <button class="act-btn${hlCls}" data-action="toggle-hl" data-cat="${catId}" data-title="${esc(film.t)}" title="Mettre en avant">★</button>
+        <button class="act-btn${noteCls}" data-action="show-note" data-cat="${catId}" data-title="${esc(film.t)}" title="Note">✎</button>
         <button class="act-btn" data-action="promote-sugg" data-cat="${catId}" data-title="${esc(film.t)}" data-dir="${esc(film.d||'')}" data-year="${film.y||''}" title="Promouvoir">＋</button>
         <button class="act-btn" data-action="replace-sugg" data-cat="${catId}" data-title="${esc(film.t)}" title="Remplacer">↻</button>
         <button class="act-btn${mustCls}" data-action="toggle-must" data-cat="${catId}" data-title="${esc(film.t)}" title="Incontournable">◆</button>
       </div>`
     : `<div class="actions">
         <button class="act-btn${hlCls}" data-action="toggle-hl" data-cat="${catId}" data-title="${esc(film.t)}" title="Mettre en avant">★</button>
+        <button class="act-btn${noteCls}" data-action="show-note" data-cat="${catId}" data-title="${esc(film.t)}" title="Note">✎</button>
         <button class="act-btn${mustCls}" data-action="toggle-must" data-cat="${catId}" data-title="${esc(film.t)}" title="Incontournable">◆</button>
         <button class="act-btn del" data-action="delete-film" data-cat="${catId}" data-title="${esc(film.t)}" title="Supprimer">✕</button>
       </div>`;
@@ -998,6 +1045,7 @@ function renderFilmRow(film, catId, isSugg) {
     <div class="film-info">
       <button class="film-title-btn film-title${isSugg && film.type === 'must' ? ' classic' : ''}" data-action="show-film-info" data-cat="${catId}" data-title="${esc(film.t)}">${esc(film.t)}</button>
       ${film.d ? `<div class="film-director">${esc(film.d)}</div>` : ''}
+      ${note ? `<div class="note-preview">${esc(note)}</div>` : ''}
     </div>
     <div class="film-meta">
       ${film.y ? `<span class="film-year">${film.y}</span>` : ''}
@@ -1029,14 +1077,6 @@ function renderCategory(cat) {
       ${filmRows}
       <div class="sugg-sep">Suggestions</div>
       ${suggRows}
-      <button class="add-trigger" data-action="show-add-form" data-cat="${cat.id}">＋ ajouter un film</button>
-      <div class="add-form" id="add-form-${cat.id}">
-        <input class="inp-title" placeholder="Titre" data-field="title">
-        <input class="inp-dir" placeholder="Réalisateur" data-field="dir">
-        <input class="inp-year" placeholder="Année" data-field="year" type="number">
-        <button class="btn-submit" data-action="submit-add-film" data-cat="${cat.id}">Ajouter</button>
-        <button class="btn-cancel" data-action="cancel-add-film" data-cat="${cat.id}">Annuler</button>
-      </div>
     </div>
   </div>`;
 }
@@ -1076,6 +1116,8 @@ function renderSeriesRow(serie, sectionId) {
   const done = !!serie.done;
   const hl = !!S.seriesHl[k];
   const rating = S.ratings[k] || null;
+  const note = S.notes[k] || '';
+  const noteCls = note ? ' note-active' : '';
   const cls = ['serie-item', done ? 'done' : '', hl ? 'highlighted' : ''].filter(Boolean).join(' ');
   const canMove = sectionId === 'acommencer' || sectionId === 'animation';
   const isEncours = sectionId === 'encours';
@@ -1092,6 +1134,7 @@ function renderSeriesRow(serie, sectionId) {
     <div class="film-info">
       <button class="film-title-btn serie-title" data-action="show-film-info" data-section="${sectionId}" data-title="${esc(serie.t)}">${esc(serie.t)}</button>
       ${isEncours ? `<div class="serie-ep">Saison ${prog.season} · Épisode ${prog.ep}</div>` : ''}
+      ${note ? `<div class="note-preview">${esc(note)}</div>` : ''}
     </div>
     <div class="film-meta">
       ${serie.y ? `<span class="serie-year">${serie.y}</span>` : ''}
@@ -1109,6 +1152,7 @@ function renderSeriesRow(serie, sectionId) {
       </div>` : ''}
       <div class="actions">
         <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
+        <button class="act-btn${noteCls}" data-action="show-note" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Note">✎</button>
         ${canMove ? `<button class="act-btn" data-action="move-encours" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Déplacer en cours">▶</button>` : ''}
         ${isEncours ? `<button class="act-btn back" data-action="move-back" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remettre dans la liste">↩</button>` : ''}
         <button class="act-btn del" data-action="delete-serie" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
@@ -1130,13 +1174,6 @@ function renderSeriesSection(sec) {
       <span class="section-count">${doneCount} / ${list.length}</span>
     </div>
     ${sorted.map(s => renderSeriesRow(s, sec.id)).join('')}
-    <button class="add-trigger" data-action="show-add-serie" data-section="${sec.id}">＋ ajouter une série</button>
-    <div class="add-form" id="add-serie-${sec.id}">
-      <input class="inp-title" placeholder="Titre" data-field="title">
-      <input class="inp-year" placeholder="Année" data-field="year" type="number">
-      <button class="btn-submit" data-action="submit-add-serie" data-section="${sec.id}">Ajouter</button>
-      <button class="btn-cancel" data-action="cancel-add-serie" data-section="${sec.id}">Annuler</button>
-    </div>
   </div>`;
 }
 
@@ -1304,12 +1341,20 @@ document.addEventListener('click', async (e) => {
   }
 
   if (action === 'show-film-info') {
-    const ns = catId || sectionId;
     const allFilms = catId
       ? [...getFilms(catId), ...getSuggestions(catId)]
       : (S.series[sectionId] || []);
     const film = allFilms.find(f => f.t === title);
     if (film) showFilmInfo(film);
+    return;
+  }
+
+  if (action === 'show-note') {
+    const ns = catId || sectionId;
+    const rerender = catId
+      ? () => rerenderCategory(catId)
+      : () => rerenderSection(sectionId);
+    openNoteModal(ns, title, rerender);
     return;
   }
 
@@ -1383,32 +1428,6 @@ document.addEventListener('click', async (e) => {
   if (action === 'promote-sugg') {
     const film = { t: title, d: btn.dataset.dir || '', y: parseInt(btn.dataset.year) || null };
     promoteSugg(catId, film);
-    return;
-  }
-
-  if (action === 'show-add-form') {
-    const form = document.getElementById('add-form-' + catId);
-    if (form) { form.classList.toggle('visible'); form.querySelector('.inp-title').focus(); }
-    return;
-  }
-
-  if (action === 'cancel-add-film') {
-    const form = document.getElementById('add-form-' + catId);
-    if (form) form.classList.remove('visible');
-    return;
-  }
-
-  if (action === 'submit-add-film') {
-    const form = document.getElementById('add-form-' + catId);
-    if (!form) return;
-    const t = form.querySelector('[data-field="title"]').value.trim();
-    const d = form.querySelector('[data-field="dir"]').value.trim();
-    const y = parseInt(form.querySelector('[data-field="year"]').value) || null;
-    if (!t) return;
-    if (!S.extra[catId]) S.extra[catId] = [];
-    S.extra[catId].push({t, d, y});
-    save('wl-extra-v4', S.extra);
-    rerenderCategory(catId);
     return;
   }
 
@@ -1486,30 +1505,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  if (action === 'show-add-serie') {
-    const form = document.getElementById('add-serie-' + sectionId);
-    if (form) { form.classList.toggle('visible'); form.querySelector('.inp-title').focus(); }
-    return;
-  }
-
-  if (action === 'cancel-add-serie') {
-    const form = document.getElementById('add-serie-' + sectionId);
-    if (form) form.classList.remove('visible');
-    return;
-  }
-
-  if (action === 'submit-add-serie') {
-    const form = document.getElementById('add-serie-' + sectionId);
-    if (!form) return;
-    const t = form.querySelector('[data-field="title"]').value.trim();
-    const y = parseInt(form.querySelector('[data-field="year"]').value) || null;
-    if (!t) return;
-    if (!S.series[sectionId]) S.series[sectionId] = [];
-    S.series[sectionId].push({t, y, done: false});
-    save('wl-series-v2', S.series);
-    rerenderSection(sectionId);
-    return;
-  }
 });
 
 /* ===================== TABS ===================== */
@@ -1624,19 +1619,32 @@ function closeFilmInfo() {
 }
 
 /* ===================== AJOUT GLOBAL AVEC IA ===================== */
-function openGlobalAdd() {
-  // Remplir le select catégories
+let gaCurrentType = 'film';
+
+function gaSetType(type) {
+  gaCurrentType = type;
+  document.getElementById('ga-type-film').classList.toggle('active', type === 'film');
+  document.getElementById('ga-type-serie').classList.toggle('active', type === 'serie');
+  document.getElementById('ga-dir-row').style.display = type === 'film' ? '' : 'none';
+  document.getElementById('ga-year-only-row').style.display = type === 'serie' ? '' : 'none';
+  document.getElementById('ga-cat-label').textContent = type === 'film' ? 'CATÉGORIE' : 'SECTION';
+  // Recharger le select
   const sel = document.getElementById('ga-cat');
-  if (!sel.options.length) {
-    CATEGORIES.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id; opt.textContent = c.label;
-      sel.appendChild(opt);
-    });
-  }
+  sel.innerHTML = '';
+  const list = type === 'film' ? CATEGORIES : SERIES_SECTIONS;
+  list.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.label;
+    sel.appendChild(opt);
+  });
+}
+
+function openGlobalAdd() {
+  gaSetType('film');
   document.getElementById('ga-title').value = '';
   document.getElementById('ga-dir').value = '';
   document.getElementById('ga-year').value = '';
+  document.getElementById('ga-year-serie').value = '';
   document.getElementById('ga-status').textContent = '';
   document.getElementById('global-add-modal').classList.add('open');
   setTimeout(() => document.getElementById('ga-title').focus(), 50);
@@ -1652,47 +1660,51 @@ async function gaAutoFill() {
   const btn = document.getElementById('ga-ai-btn');
   const status = document.getElementById('ga-status');
   btn.disabled = true; btn.textContent = '…';
-  status.textContent = 'Claude cherche le film…';
 
-  const catList = CATEGORIES.map(c => `${c.id}: ${c.label}`).join(', ');
-  const prompt = `Film: "${title}"
+  let prompt;
+  if (gaCurrentType === 'film') {
+    status.textContent = 'Claude cherche le film…';
+    const catList = CATEGORIES.map(c => `${c.id}: ${c.label}`).join(', ');
+    prompt = `Film: "${title}"
 Catégories disponibles: ${catList}
-
 Donne le réalisateur, l'année de sortie et la catégorie la plus adaptée.
 Réponds UNIQUEMENT en JSON valide: {"d":"réalisateur","y":2001,"cat":"id_categorie"}`;
+  } else {
+    status.textContent = 'Claude cherche la série…';
+    prompt = `Série TV: "${title}"
+Sections disponibles: acommencer (à découvrir), animation (animation), encours (en cours de visionnage).
+Donne l'année de début et la section la plus adaptée (par défaut "acommencer").
+Réponds UNIQUEMENT en JSON valide: {"y":2020,"cat":"acommencer"}`;
+  }
 
   try {
     const apiKey = getApiKey();
-    let res, data;
-    if (apiKey) {
-      res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 100,
-          messages: [{ role: 'user', content: prompt }]
-        })
-      });
-    } else {
-      res = await fetch('/.netlify/functions/claude', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
-      });
-    }
-    data = await res.json();
+    if (!apiKey) { status.textContent = 'Configure ta clé API pour utiliser l\'IA.'; btn.disabled = false; btn.textContent = '✨ IA'; return; }
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 100,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
     const text = data.content?.[0]?.text || '';
     const match = text.match(/\{[^}]+\}/);
     if (match) {
       const parsed = JSON.parse(match[0]);
-      if (parsed.d) document.getElementById('ga-dir').value = parsed.d;
-      if (parsed.y) document.getElementById('ga-year').value = parsed.y;
+      if (gaCurrentType === 'film') {
+        if (parsed.d) document.getElementById('ga-dir').value = parsed.d;
+        if (parsed.y) document.getElementById('ga-year').value = parsed.y;
+      } else {
+        if (parsed.y) document.getElementById('ga-year-serie').value = parsed.y;
+      }
       if (parsed.cat) document.getElementById('ga-cat').value = parsed.cat;
       status.textContent = '✓ Complété par Claude — vérifie et confirme.';
     } else {
@@ -1706,23 +1718,57 @@ Réponds UNIQUEMENT en JSON valide: {"d":"réalisateur","y":2001,"cat":"id_categ
 
 function gaConfirm() {
   const title = document.getElementById('ga-title').value.trim();
-  const dir   = document.getElementById('ga-dir').value.trim();
-  const year  = parseInt(document.getElementById('ga-year').value) || null;
-  const catId = document.getElementById('ga-cat').value;
   if (!title) { document.getElementById('ga-status').textContent = 'Le titre est requis.'; return; }
+  const catId = document.getElementById('ga-cat').value;
 
-  if (!S.extra[catId]) S.extra[catId] = [];
-  S.extra[catId].push({ t: title, d: dir || undefined, y: year || undefined });
-  save('wl-extra-v4', S.extra);
-  rerenderCategory(catId);
+  if (gaCurrentType === 'film') {
+    const dir  = document.getElementById('ga-dir').value.trim();
+    const year = parseInt(document.getElementById('ga-year').value) || null;
+    if (!S.extra[catId]) S.extra[catId] = [];
+    S.extra[catId].push({ t: title, d: dir || undefined, y: year || undefined });
+    save('wl-extra-v4', S.extra);
+    rerenderCategory(catId);
+    openCats.add(catId);
+    closeGlobalAdd();
+    setTimeout(() => document.getElementById('cat-' + catId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+  } else {
+    const year = parseInt(document.getElementById('ga-year-serie').value) || null;
+    if (!S.series[catId]) S.series[catId] = [];
+    S.series[catId].push({ t: title, y: year || undefined, done: false });
+    save('wl-series-v2', S.series);
+    rerenderSection(catId);
+    closeGlobalAdd();
+    // Basculer sur l'onglet séries si besoin
+    const seriesTab = document.querySelector('[data-tab="series"]');
+    if (seriesTab && !document.getElementById('series-tab').classList.contains('active')) seriesTab.click();
+    setTimeout(() => document.getElementById('sec-' + catId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+  }
+}
 
-  // Ouvre la catégorie
-  openCats.add(catId);
-  closeGlobalAdd();
-  // Scroll vers la catégorie
-  setTimeout(() => {
-    document.getElementById('cat-' + catId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 100);
+/* ===== Notes écrites ===== */
+let notePending = null; // { ns, title, rerender }
+
+function openNoteModal(ns, title, rerender) {
+  notePending = { ns, title, rerender };
+  const k = key(ns, title);
+  document.getElementById('note-modal-title').textContent = title;
+  document.getElementById('note-textarea').value = S.notes[k] || '';
+  document.getElementById('note-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('note-textarea').focus(), 50);
+}
+function closeNoteModal() {
+  document.getElementById('note-modal-overlay').classList.remove('open');
+  notePending = null;
+}
+function saveNote() {
+  if (!notePending) return;
+  const { ns, title, rerender } = notePending;
+  const k = key(ns, title);
+  const text = document.getElementById('note-textarea').value.trim();
+  if (text) S.notes[k] = text; else delete S.notes[k];
+  save('wl-notes-v1', S.notes);
+  closeNoteModal();
+  rerender();
 }
 
 /* ===== Rate-before-replace ===== */
