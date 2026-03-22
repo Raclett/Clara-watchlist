@@ -301,7 +301,10 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .serie-item:hover { background: rgba(224,120,56,0.06); }
 .serie-item.done { opacity: .5; }
 .serie-item.done .serie-title { text-decoration: line-through; }
+.serie-item.done .rating-btns { display: flex; }
 .serie-item.highlighted { border-left: 3px solid var(--orange); padding-left: calc(1rem - 3px); }
+/* Suggestions séries : pas de seen-btn ni ratingBtns → grid 2 colonnes */
+.serie-item.serie-sugg { grid-template-columns: 1fr auto; }
 
 .serie-title { font-family: 'EB Garamond', serif; font-style: italic; font-size: 1rem; }
 .serie-year { font-size: .72rem; color: var(--muted); }
@@ -1183,10 +1186,13 @@ function renderSeriesRow(serie, sectionId, isSugg = false) {
   const k = key(sectionId, serie.t);
   const done = !!serie.done;
   const hl = !!S.seriesHl[k];
+  const must = !!S.must[k];
   const rating = S.ratings[k] || null;
   const note = S.notes[k] || '';
   const noteCls = note ? ' note-active' : '';
-  const cls = ['serie-item', done ? 'done' : '', hl ? 'highlighted' : ''].filter(Boolean).join(' ');
+  const mustCls = must ? ' must-active' : '';
+  const cls = ['serie-item', isSugg ? 'serie-sugg' : '', done ? 'done' : '', hl ? 'highlighted' : ''].filter(Boolean).join(' ');
+  const badge = must ? `<span class="badge badge-must">incontournable</span>` : '';
   const canMove = sectionId === 'acommencer' || sectionId === 'animation';
   const isEncours = sectionId === 'encours';
   const prog = S.seriesProgress[k] || {season: 1, ep: 0};
@@ -1218,12 +1224,17 @@ function renderSeriesRow(serie, sectionId, isSugg = false) {
           <button class="ep-btn" data-action="ep-inc" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Épisode suivant">＋</button>
         </div>
       </div>` : ''}
+      ${badge}
       ${isSugg ? `<div class="actions">
+        <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
+        <button class="act-btn${noteCls}" data-action="show-note" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Note">✎</button>
         <button class="act-btn" data-action="promote-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" data-year="${serie.y||''}" title="Ajouter à ma liste">＋</button>
-        <button class="act-btn" data-action="replace-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remplacer">↻</button>
+        <button class="act-btn" data-action="replace-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remplacer par IA">↻</button>
+        <button class="act-btn del" data-action="delete-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
       </div>` : `<div class="actions">
         <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
         <button class="act-btn${noteCls}" data-action="show-note" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Note">✎</button>
+        <button class="act-btn${mustCls}" data-action="toggle-serie-must" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Incontournable">◆</button>
         ${canMove ? `<button class="act-btn" data-action="move-encours" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Déplacer en cours">▶</button>` : ''}
         ${isEncours ? `<button class="act-btn back" data-action="move-back" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remettre dans la liste">↩</button>` : ''}
         <button class="act-btn del" data-action="delete-serie" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
@@ -1417,9 +1428,10 @@ document.addEventListener('click', async (e) => {
   if (action === 'show-film-info') {
     const allFilms = catId
       ? [...getFilms(catId), ...getSuggestions(catId)]
-      : (S.series[sectionId] || []);
+      : [...(S.series[sectionId] || []), ...getSeriesSuggestions(sectionId)];
     const film = allFilms.find(f => f.t === title);
     if (film) showFilmInfo(film);
+    else showFilmInfo({ t: title, y: null }); // fallback pour suggestion sans objet trouvé
     return;
   }
 
@@ -1524,6 +1536,22 @@ document.addEventListener('click', async (e) => {
     S.seriesHl[k] = !S.seriesHl[k];
     if (!S.seriesHl[k]) delete S.seriesHl[k];
     save('wl-series-hl-v1', S.seriesHl);
+    rerenderSection(sectionId);
+    return;
+  }
+
+  if (action === 'toggle-serie-must') {
+    const k = key(sectionId, title);
+    S.must[k] = !S.must[k];
+    if (!S.must[k]) delete S.must[k];
+    save('wl-must-v1', S.must);
+    rerenderSection(sectionId);
+    return;
+  }
+
+  if (action === 'delete-serie-sugg') {
+    S.suggSeries[sectionId] = (S.suggSeries[sectionId] || getSeriesSuggestions(sectionId)).filter(s => s.t !== title);
+    save('wl-sugg-series-v1', S.suggSeries);
     rerenderSection(sectionId);
     return;
   }
