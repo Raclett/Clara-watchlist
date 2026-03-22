@@ -331,6 +331,139 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .series-header { text-align: center; padding: 1.5rem 0 1.5rem; }
 .series-header h2 { font-family: 'EB Garamond', serif; font-size: 1.8rem; }
 .series-header p { color: var(--muted); font-size: .85rem; margin-top: .3rem; }
+
+/* ===== Popup info film (Wikipedia) ===== */
+.film-title-btn {
+  background: none; border: none; color: inherit;
+  font-family: inherit; font-size: inherit; font-style: inherit;
+  font-weight: inherit; text-align: left; cursor: pointer; padding: 0;
+  line-height: inherit;
+}
+.film-title-btn:hover { text-decoration: underline; text-decoration-color: var(--muted); text-underline-offset: 2px; }
+
+.film-info-modal {
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,.65); backdrop-filter: blur(5px);
+  align-items: center; justify-content: center; padding: 1rem;
+}
+.film-info-modal.open { display: flex; }
+.film-info-card {
+  background: #1a1828; border: 1px solid var(--border);
+  border-radius: 14px; width: min(480px, 100%);
+  max-height: 90vh; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+.film-info-card-top {
+  display: flex; gap: 1rem; padding: 1.2rem;
+}
+.film-info-poster {
+  width: 90px; height: 130px; border-radius: 7px;
+  object-fit: cover; flex-shrink: 0;
+  background: rgba(255,255,255,0.07);
+}
+.film-info-poster-placeholder {
+  width: 90px; height: 130px; border-radius: 7px;
+  background: rgba(255,255,255,0.07); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; color: var(--muted);
+}
+.film-info-meta { display: flex; flex-direction: column; gap: .3rem; }
+.film-info-meta h2 {
+  font-family: 'EB Garamond', serif; font-size: 1.25rem;
+  line-height: 1.3; color: var(--cream);
+}
+.film-info-meta .fi-director { font-size: .8rem; color: var(--muted); }
+.film-info-meta .fi-year {
+  font-size: .72rem; color: var(--muted);
+  background: rgba(255,255,255,0.07); padding: .15rem .45rem;
+  border-radius: 4px; display: inline-block; margin-top: .1rem;
+}
+.film-info-extract {
+  padding: 0 1.2rem 1.2rem;
+  font-size: .82rem; color: var(--cream); line-height: 1.6;
+  opacity: .85;
+}
+.film-info-footer {
+  padding: .75rem 1.2rem;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.film-info-footer a {
+  font-size: .75rem; color: var(--violet); text-decoration: none;
+}
+.film-info-footer a:hover { text-decoration: underline; }
+.film-info-close {
+  font-size: .78rem; color: var(--muted); cursor: pointer;
+  background: none; border: 1px solid var(--border);
+  padding: .3rem .7rem; border-radius: 6px;
+}
+.film-info-loading {
+  padding: 2rem; text-align: center; color: var(--muted); font-size: .85rem;
+}
+
+/* ===== Bouton + modal ajout global ===== */
+.global-add-btn {
+  position: absolute; top: 1.2rem; left: 1rem;
+  font-size: .7rem; color: var(--muted); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: .3rem .6rem; cursor: pointer; letter-spacing: .04em;
+  transition: color .15s;
+}
+.global-add-btn:hover { color: var(--cream); }
+
+.global-add-modal {
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center; padding: 1rem;
+}
+.global-add-modal.open { display: flex; }
+.global-add-card {
+  background: #1a1828; border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.4rem; width: min(400px, 100%);
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.global-add-card h3 {
+  font-family: 'EB Garamond', serif; font-size: 1.3rem; color: var(--cream);
+}
+.ga-field { display: flex; flex-direction: column; gap: .3rem; }
+.ga-label { font-size: .72rem; color: var(--muted); letter-spacing: .05em; }
+.ga-input {
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  border-radius: 7px; color: var(--cream); font-family: 'Nunito', sans-serif;
+  font-size: .9rem; padding: .5rem .75rem; outline: none; width: 100%;
+}
+.ga-input:focus { border-color: var(--violet); }
+.ga-input::placeholder { color: var(--muted); }
+.ga-input:read-only { opacity: .7; }
+.ga-row { display: flex; gap: .6rem; }
+.ga-row .ga-field { flex: 1; }
+.ga-cat-select {
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  border-radius: 7px; color: var(--cream); font-family: 'Nunito', sans-serif;
+  font-size: .85rem; padding: .5rem .75rem; outline: none; width: 100%;
+  cursor: pointer;
+}
+.ga-cat-select:focus { border-color: var(--violet); }
+.ga-cat-select option { background: #1a1828; }
+.ga-ai-row { display: flex; gap: .6rem; align-items: flex-end; }
+.ga-ai-row .ga-field { flex: 1; }
+.ga-ai-btn {
+  background: var(--violet); border: none; border-radius: 7px;
+  color: #fff; font-size: .82rem; padding: .5rem .9rem;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: opacity .15s;
+}
+.ga-ai-btn:disabled { opacity: .5; cursor: default; }
+.ga-actions { display: flex; gap: .6rem; justify-content: flex-end; margin-top: .2rem; }
+.ga-actions button {
+  padding: .45rem 1rem; border-radius: 7px; font-size: .82rem;
+  cursor: pointer; border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+}
+.ga-actions .ga-save {
+  background: var(--orange); border-color: var(--orange); color: #fff;
+}
+.ga-status { font-size: .75rem; color: var(--muted); min-height: 1em; }
 </style>
 </head>
 <body>
@@ -348,6 +481,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 
 <div id="films-tab" class="tab-content active">
   <div class="wl-header">
+    <button class="global-add-btn" onclick="openGlobalAdd()">＋ Ajouter un film</button>
     <button class="api-key-btn" id="api-key-btn" onclick="openApiModal()">⚙ Clé API</button>
     <h1>Ma Watchlist</h1>
     <p>Cinéma &middot; Collection personnelle</p>
@@ -372,6 +506,48 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
       </div>
     </div>
   </div>
+
+  <!-- Modal info film (Wikipedia) -->
+  <div class="film-info-modal" id="film-info-modal" onclick="if(event.target===this)closeFilmInfo()">
+    <div class="film-info-card" id="film-info-card">
+      <div class="film-info-loading" id="film-info-loading">Chargement…</div>
+    </div>
+  </div>
+
+  <!-- Modal ajout global avec IA -->
+  <div class="global-add-modal" id="global-add-modal" onclick="if(event.target===this)closeGlobalAdd()">
+    <div class="global-add-card">
+      <h3>Ajouter un film</h3>
+      <div class="ga-ai-row">
+        <div class="ga-field">
+          <label class="ga-label">TITRE</label>
+          <input class="ga-input" id="ga-title" placeholder="Ex : Mulholland Drive" autocomplete="off"
+            onkeydown="if(event.key==='Enter')gaAutoFill()">
+        </div>
+        <button class="ga-ai-btn" id="ga-ai-btn" onclick="gaAutoFill()">✨ IA</button>
+      </div>
+      <div class="ga-row">
+        <div class="ga-field">
+          <label class="ga-label">RÉALISATEUR</label>
+          <input class="ga-input" id="ga-dir" placeholder="—">
+        </div>
+        <div class="ga-field" style="max-width:90px">
+          <label class="ga-label">ANNÉE</label>
+          <input class="ga-input" id="ga-year" placeholder="—" type="number">
+        </div>
+      </div>
+      <div class="ga-field">
+        <label class="ga-label">CATÉGORIE</label>
+        <select class="ga-cat-select" id="ga-cat"></select>
+      </div>
+      <div class="ga-status" id="ga-status"></div>
+      <div class="ga-actions">
+        <button onclick="closeGlobalAdd()">Annuler</button>
+        <button class="ga-save" onclick="gaConfirm()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+
   <div id="cats-container"></div>
 </div>
 
@@ -783,7 +959,7 @@ function renderFilmRow(film, catId, isSugg) {
     <button class="seen-btn" data-action="toggle-seen" data-cat="${catId}" data-title="${esc(film.t)}">${seen ? '✓' : ''}</button>
     ${ratingBtns}
     <div class="film-info">
-      <div class="film-title${isSugg && film.type === 'must' ? ' classic' : ''}">${esc(film.t)}</div>
+      <button class="film-title-btn film-title${isSugg && film.type === 'must' ? ' classic' : ''}" data-action="show-film-info" data-cat="${catId}" data-title="${esc(film.t)}">${esc(film.t)}</button>
       ${film.d ? `<div class="film-director">${esc(film.d)}</div>` : ''}
     </div>
     <div class="film-meta">
@@ -1081,6 +1257,13 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  if (action === 'show-film-info') {
+    const allFilms = [...getFilms(catId), ...getSuggestions(catId)];
+    const film = allFilms.find(f => f.t === title);
+    if (film) showFilmInfo(film, catId);
+    return;
+  }
+
   if (action === 'toggle-seen') {
     const k = key(catId, title);
     S.seen[k] = !S.seen[k];
@@ -1278,6 +1461,183 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById(btn.dataset.tab + '-tab').classList.add('active');
   });
 });
+
+/* ===================== FILM INFO (Wikipedia) ===================== */
+const wikiCache = {};
+
+async function fetchWikipedia(title, director) {
+  const cacheKey = title;
+  if (wikiCache[cacheKey]) return wikiCache[cacheKey];
+
+  // Cherche d'abord en français, puis en anglais
+  for (const lang of ['fr', 'en']) {
+    try {
+      const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(title + ' film')}&limit=1&format=json&origin=*`;
+      const searchRes = await fetch(searchUrl);
+      const searchData = await searchRes.json();
+      const pageTitle = searchData[1]?.[0];
+      if (!pageTitle) continue;
+
+      const summaryUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`;
+      const res = await fetch(summaryUrl);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!data.extract) continue;
+
+      const result = {
+        extract: data.extract,
+        thumbnail: data.thumbnail?.source || null,
+        url: data.content_urls?.desktop?.page || null,
+        lang
+      };
+      wikiCache[cacheKey] = result;
+      return result;
+    } catch { continue; }
+  }
+  return null;
+}
+
+function showFilmInfo(film, catId) {
+  const modal = document.getElementById('film-info-modal');
+  const card = document.getElementById('film-info-card');
+  card.innerHTML = `<div class="film-info-loading">Chargement…</div>`;
+  modal.classList.add('open');
+
+  fetchWikipedia(film.t, film.d).then(data => {
+    const thumb = data?.thumbnail
+      ? `<img class="film-info-poster" src="${data.thumbnail}" alt="${esc(film.t)}" loading="lazy">`
+      : `<div class="film-info-poster-placeholder">🎬</div>`;
+
+    const extract = data?.extract
+      ? `<div class="film-info-extract">${esc(data.extract)}</div>`
+      : `<div class="film-info-extract" style="color:var(--muted)">Aucune description disponible.</div>`;
+
+    const wikiLink = data?.url
+      ? `<a href="${data.url}" target="_blank" rel="noopener">→ Wikipedia (${data.lang})</a>`
+      : `<span></span>`;
+
+    card.innerHTML = `
+      <div class="film-info-card-top">
+        ${thumb}
+        <div class="film-info-meta">
+          <h2>${esc(film.t)}</h2>
+          ${film.d ? `<div class="fi-director">${esc(film.d)}</div>` : ''}
+          ${film.y ? `<div class="fi-year">${film.y}</div>` : ''}
+        </div>
+      </div>
+      ${extract}
+      <div class="film-info-footer">
+        ${wikiLink}
+        <button class="film-info-close" onclick="closeFilmInfo()">Fermer</button>
+      </div>`;
+  });
+}
+
+function closeFilmInfo() {
+  document.getElementById('film-info-modal').classList.remove('open');
+}
+
+/* ===================== AJOUT GLOBAL AVEC IA ===================== */
+function openGlobalAdd() {
+  // Remplir le select catégories
+  const sel = document.getElementById('ga-cat');
+  if (!sel.options.length) {
+    CATEGORIES.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.label;
+      sel.appendChild(opt);
+    });
+  }
+  document.getElementById('ga-title').value = '';
+  document.getElementById('ga-dir').value = '';
+  document.getElementById('ga-year').value = '';
+  document.getElementById('ga-status').textContent = '';
+  document.getElementById('global-add-modal').classList.add('open');
+  setTimeout(() => document.getElementById('ga-title').focus(), 50);
+}
+
+function closeGlobalAdd() {
+  document.getElementById('global-add-modal').classList.remove('open');
+}
+
+async function gaAutoFill() {
+  const title = document.getElementById('ga-title').value.trim();
+  if (!title) return;
+  const btn = document.getElementById('ga-ai-btn');
+  const status = document.getElementById('ga-status');
+  btn.disabled = true; btn.textContent = '…';
+  status.textContent = 'Claude cherche le film…';
+
+  const catList = CATEGORIES.map(c => `${c.id}: ${c.label}`).join(', ');
+  const prompt = `Film: "${title}"
+Catégories disponibles: ${catList}
+
+Donne le réalisateur, l'année de sortie et la catégorie la plus adaptée.
+Réponds UNIQUEMENT en JSON valide: {"d":"réalisateur","y":2001,"cat":"id_categorie"}`;
+
+  try {
+    const apiKey = getApiKey();
+    let res, data;
+    if (apiKey) {
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 100,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+    } else {
+      res = await fetch('/.netlify/functions/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] })
+      });
+    }
+    data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const match = text.match(/\{[^}]+\}/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      if (parsed.d) document.getElementById('ga-dir').value = parsed.d;
+      if (parsed.y) document.getElementById('ga-year').value = parsed.y;
+      if (parsed.cat) document.getElementById('ga-cat').value = parsed.cat;
+      status.textContent = '✓ Complété par Claude — vérifie et confirme.';
+    } else {
+      status.textContent = 'Réponse inattendue. Remplis manuellement.';
+    }
+  } catch {
+    status.textContent = 'Erreur réseau. Remplis manuellement.';
+  }
+  btn.disabled = false; btn.textContent = '✨ IA';
+}
+
+function gaConfirm() {
+  const title = document.getElementById('ga-title').value.trim();
+  const dir   = document.getElementById('ga-dir').value.trim();
+  const year  = parseInt(document.getElementById('ga-year').value) || null;
+  const catId = document.getElementById('ga-cat').value;
+  if (!title) { document.getElementById('ga-status').textContent = 'Le titre est requis.'; return; }
+
+  if (!S.extra[catId]) S.extra[catId] = [];
+  S.extra[catId].push({ t: title, d: dir || undefined, y: year || undefined });
+  save('wl-extra-v4', S.extra);
+  rerenderCategory(catId);
+
+  // Ouvre la catégorie
+  openCats.add(catId);
+  closeGlobalAdd();
+  // Scroll vers la catégorie
+  setTimeout(() => {
+    document.getElementById('cat-' + catId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
 
 /* ===================== PWA ===================== */
 let deferredPrompt;
