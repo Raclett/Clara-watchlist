@@ -170,7 +170,6 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 }
 .film-item:hover { background: rgba(224,120,56,0.06); }
 .film-item.highlighted { border-left: 3px solid var(--orange); padding-left: calc(1rem - 3px); }
-.film-item.seen .film-title { text-decoration: line-through; opacity: .5; }
 .film-item.seen { opacity: .55; }
 
 .seen-btn {
@@ -301,7 +300,6 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 }
 .serie-item:hover { background: rgba(224,120,56,0.06); }
 .serie-item.done { opacity: .5; }
-.serie-item.done .serie-title { text-decoration: line-through; }
 .serie-item.done .rating-btns { display: flex; }
 .serie-item.highlighted { border-left: 3px solid var(--orange); padding-left: calc(1rem - 3px); }
 /* Suggestions séries : pas de seen-btn ni ratingBtns → grid 2 colonnes */
@@ -546,6 +544,47 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 </div>
 
 <!-- Modal ajout global avec IA (film ou série) -->
+<div class="global-add-modal" id="global-add-modal" onclick="if(event.target===this)closeGlobalAdd()">
+  <div class="global-add-card">
+    <div class="ga-type-toggle">
+      <button class="ga-type-btn active" id="ga-type-film" onclick="gaSetType('film')">Film</button>
+      <button class="ga-type-btn" id="ga-type-serie" onclick="gaSetType('serie')">Série</button>
+    </div>
+    <div class="ga-ai-row">
+      <div class="ga-field">
+        <label class="ga-label">TITRE</label>
+        <input class="ga-input" id="ga-title" placeholder="Ex : Mulholland Drive" autocomplete="off"
+          onkeydown="if(event.key==='Enter')gaAutoFill()">
+      </div>
+      <button class="ga-ai-btn" id="ga-ai-btn" onclick="gaAutoFill()">✨ IA</button>
+    </div>
+    <div class="ga-row" id="ga-dir-row">
+      <div class="ga-field">
+        <label class="ga-label">RÉALISATEUR</label>
+        <input class="ga-input" id="ga-dir" placeholder="—">
+      </div>
+      <div class="ga-field" style="max-width:90px">
+        <label class="ga-label">ANNÉE</label>
+        <input class="ga-input" id="ga-year" placeholder="—" type="number">
+      </div>
+    </div>
+    <div class="ga-row" id="ga-year-only-row" style="display:none">
+      <div class="ga-field" style="max-width:90px">
+        <label class="ga-label">ANNÉE</label>
+        <input class="ga-input" id="ga-year-serie" placeholder="—" type="number">
+      </div>
+    </div>
+    <div class="ga-field">
+      <label class="ga-label" id="ga-cat-label">CATÉGORIE</label>
+      <select class="ga-cat-select" id="ga-cat"></select>
+    </div>
+    <div class="ga-status" id="ga-status"></div>
+    <div class="ga-actions">
+      <button onclick="closeGlobalAdd()">Annuler</button>
+      <button class="ga-save" onclick="gaConfirm()">Ajouter</button>
+    </div>
+  </div>
+</div>
 
 <nav class="tabs-nav">
   <button class="tab-btn active" data-tab="films">Films</button>
@@ -562,49 +601,6 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
       <div class="stat"><strong id="stat-total">0</strong> films</div>
       <div class="stat"><strong id="stat-seen">0</strong> vus</div>
       <div class="stat"><strong id="stat-left">0</strong> à voir</div>
-    </div>
-  </div>
-
-  <!-- Modal ajout global avec IA (film ou série) -->
-  <div class="global-add-modal" id="global-add-modal" onclick="if(event.target===this)closeGlobalAdd()">
-    <div class="global-add-card">
-      <div class="ga-type-toggle">
-        <button class="ga-type-btn active" id="ga-type-film" onclick="gaSetType('film')">Film</button>
-        <button class="ga-type-btn" id="ga-type-serie" onclick="gaSetType('serie')">Série</button>
-      </div>
-      <div class="ga-ai-row">
-        <div class="ga-field">
-          <label class="ga-label">TITRE</label>
-          <input class="ga-input" id="ga-title" placeholder="Ex : Mulholland Drive" autocomplete="off"
-            onkeydown="if(event.key==='Enter')gaAutoFill()">
-        </div>
-        <button class="ga-ai-btn" id="ga-ai-btn" onclick="gaAutoFill()">✨ IA</button>
-      </div>
-      <div class="ga-row" id="ga-dir-row">
-        <div class="ga-field">
-          <label class="ga-label">RÉALISATEUR</label>
-          <input class="ga-input" id="ga-dir" placeholder="—">
-        </div>
-        <div class="ga-field" style="max-width:90px">
-          <label class="ga-label">ANNÉE</label>
-          <input class="ga-input" id="ga-year" placeholder="—" type="number">
-        </div>
-      </div>
-      <div class="ga-row" id="ga-year-only-row" style="display:none">
-        <div class="ga-field" style="max-width:90px">
-          <label class="ga-label">ANNÉE</label>
-          <input class="ga-input" id="ga-year-serie" placeholder="—" type="number">
-        </div>
-      </div>
-      <div class="ga-field">
-        <label class="ga-label" id="ga-cat-label">CATÉGORIE</label>
-        <select class="ga-cat-select" id="ga-cat"></select>
-      </div>
-      <div class="ga-status" id="ga-status"></div>
-      <div class="ga-actions">
-        <button onclick="closeGlobalAdd()">Annuler</button>
-        <button class="ga-save" onclick="gaConfirm()">Ajouter</button>
-      </div>
     </div>
   </div>
 
@@ -903,11 +899,15 @@ const CATEGORIES = [
 const SERIES_SECTIONS = [
   { id: 'acommencer', label: 'A COMMENCER', suggestions: [
     {t:'The Bear',y:2022},{t:'Severance',y:2022},{t:'The Rehearsal',y:2022},
-    {t:'Fleabag',y:2016},{t:'Mindhunter',y:2017},{t:'Beef',y:2023}
+    {t:'Fleabag',y:2016},{t:'Mindhunter',y:2017},{t:'Beef',y:2023},
+    {t:'Succession',y:2018},{t:'The White Lotus',y:2021},{t:'Industry',y:2020},
+    {t:'I May Destroy You',y:2020},{t:'Sharp Objects',y:2018}
   ]},
   { id: 'animation', label: 'ANIMATION', suggestions: [
     {t:'Arcane',y:2021},{t:'Blue Eye Samurai',y:2023},
-    {t:'Undone',y:2019},{t:'Pantheon',y:2022}
+    {t:'Undone',y:2019},{t:'Pantheon',y:2022},
+    {t:'Scavenger Reign',y:2023},{t:'Primal',y:2019},{t:'Mob Psycho 100',y:2016},
+    {t:'Vinland Saga',y:2019},{t:'Frieren',y:2023}
   ]},
   { id: 'encours', label: 'EN COURS' }
 ];
@@ -933,14 +933,36 @@ const SERIES_DEFAULT = {
     {t:'Scandal',y:2012},{t:'Krapopolis',y:2023},{t:'Twin Peaks',y:1990},
     {t:'Watchmen',y:2019},{t:'Battlestar Galactica',y:2004},{t:'The Crowded Room',y:2023},
     {t:'A Knight of the Seven Kingdoms',y:2024},{t:'Corporate',y:2018},
-    {t:'Preacher',y:2016},{t:'The Big C',y:2010},{t:'Weeds',y:2005}
+    {t:'Preacher',y:2016},{t:'The Big C',y:2010},{t:'Weeds',y:2005},
+    {t:'The White Lotus',y:2021},{t:'Industry',y:2020},{t:'I May Destroy You',y:2020},
+    {t:'Sharp Objects',y:2018},{t:'Big Little Lies',y:2017},{t:'The Undoing',y:2020},
+    {t:'Alias',y:2001},{t:'Damages',y:2007},{t:'The Americans',y:2013},
+    {t:'Rectify',y:2013},{t:'Halt and Catch Fire',y:2014},{t:'Deutschland 83',y:2015},
+    {t:'Black Mirror',y:2011},{t:'Years and Years',y:2019},{t:'The Leftovers',y:2014},
+    {t:'Mare of Easttown',y:2021},{t:'Sharp Objects',y:2018},{t:'The Fall',y:2013},
+    {t:'Broadchurch',y:2013},{t:'Trapped',y:2015},{t:'Borgen',y:2010},
+    {t:'The Killing',y:2011},{t:'Dark',y:2017},{t:'Babylon Berlin',y:2017},
+    {t:'Lupin',y:2021},{t:'Les Revenants',y:2012},{t:'Engrenages',y:2005},
+    {t:'Deadwood',y:2004},{t:'Rome',y:2005},{t:'Carnivàle',y:2003},
+    {t:'Six Feet Under',y:2001},{t:'Oz',y:1997},{t:'The Wire',y:2002},
+    {t:'Treme',y:2010},{t:'Generation Kill',y:2008},{t:'Show Me a Hero',y:2015},
+    {t:'Euphoria',y:2019},{t:'Yellowjackets',y:2021},{t:'The Wilds',y:2020},
+    {t:'Cruel Summer',y:2021},{t:'Nine Perfect Strangers',y:2021},{t:'The Resort',y:2022},
+    {t:'Run',y:2020},{t:'Loot',y:2022},{t:'Physical',y:2021},
+    {t:'Pachinko',y:2022},{t:'The Morning Show',y:2019},{t:'Shrinking',y:2023}
   ],
   animation: [
     {t:'Scavenger Reign',y:2023},{t:'The Owl House',y:2020},{t:'Amphibia',y:2019},
     {t:'MTV Downtown',y:1999},{t:'D.Gray-Man',y:2006},{t:'Star Wars Visions',y:2021},
     {t:'Adventure Time',y:2010},{t:'Over the Garden Wall',y:2014},
     {t:'Centaur World',y:2021},{t:'Primal',y:2019},{t:'Frieren',y:2023},
-    {t:'Claymore',y:2007},{t:"Hell's Paradise",y:2023}
+    {t:'Claymore',y:2007},{t:"Hell's Paradise",y:2023},
+    {t:'Mob Psycho 100',y:2016},{t:'Vinland Saga',y:2019},{t:'Chainsaw Man',y:2022},
+    {t:'Dungeon Meshi',y:2024},{t:'Spy x Family',y:2022},{t:'Ranking of Kings',y:2021},
+    {t:'Kaiba',y:2008},{t:'Tatami Galaxy',y:2010},{t:'Night is Short Walk On Girl',y:2017},
+    {t:'Mononoke',y:2007},{t:'Paranoia Agent',y:2004},{t:'Ergo Proxy',y:2006},
+    {t:'Land of the Lustrous',y:2017},{t:'The Promised Neverland',y:2019},
+    {t:'Steven Universe',y:2013},{t:'Gravity Falls',y:2012},{t:'Star vs. the Forces of Evil',y:2015}
   ],
   encours: []
 };
