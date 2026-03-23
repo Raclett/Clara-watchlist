@@ -302,8 +302,8 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .serie-item.done { opacity: .5; }
 .serie-item.done .rating-btns { display: flex; }
 .serie-item.highlighted { border-left: 3px solid var(--orange); padding-left: calc(1rem - 3px); }
-/* Suggestions séries : pas de seen-btn ni ratingBtns → grid 2 colonnes */
-.serie-item.serie-sugg { grid-template-columns: 1fr auto; }
+/* Suggestions séries : même grid que les séries normales */
+.serie-item.serie-sugg { grid-template-columns: 28px 1fr auto; }
 
 .serie-title { font-family: 'EB Garamond', serif; font-style: italic; font-size: 1rem; }
 .serie-year { font-size: .72rem; color: var(--muted); }
@@ -1311,7 +1311,7 @@ function renderSeriesRow(serie, sectionId, isSugg = false) {
   </div>`;
 
   return `<div class="${cls}">
-    ${isSugg ? '' : `<button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>`}
+    <button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>
     <div class="film-info">
       <button class="film-title-btn serie-title" data-action="show-film-info" data-section="${sectionId}" data-title="${esc(serie.t)}">${esc(serie.t)}</button>
       ${isEncours ? `<div class="serie-ep">Saison ${prog.season} · Épisode ${prog.ep}</div>` : ''}
@@ -1627,6 +1627,7 @@ document.addEventListener('click', async (e) => {
 
   // Series
   if (action === 'toggle-serie-done') {
+    // Cherche d'abord dans la liste normale, ensuite dans les suggestions
     const list = S.series[sectionId] || [];
     const idx = list.findIndex(s => s.t === title);
     if (idx >= 0) {
@@ -1634,8 +1635,17 @@ document.addEventListener('click', async (e) => {
       if (!list[idx].done) { delete S.ratings[key(sectionId, title)]; save('wl-ratings-v1', S.ratings); }
       S.series[sectionId] = list;
       save('wl-series-v2', S.series);
-      rerenderSection(sectionId);
+    } else {
+      const suggs = S.suggSeries[sectionId] || getSeriesSuggestions(sectionId);
+      const si = suggs.findIndex(s => s.t === title);
+      if (si >= 0) {
+        suggs[si] = { ...suggs[si], done: !suggs[si].done };
+        if (!suggs[si].done) { delete S.ratings[key(sectionId, title)]; save('wl-ratings-v1', S.ratings); }
+        S.suggSeries[sectionId] = suggs;
+        save('wl-sugg-series-v1', S.suggSeries);
+      }
     }
+    rerenderSection(sectionId);
     return;
   }
 
