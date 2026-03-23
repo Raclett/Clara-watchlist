@@ -370,6 +370,58 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   background: var(--orange); border-color: var(--orange); color: #fff;
 }
 
+/* ===== Modal Coller depuis notes ===== */
+.clipboard-modal {
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center; padding: 1rem;
+}
+.clipboard-modal.open { display: flex; }
+.clipboard-card {
+  background: #1a1828; border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.4rem; width: min(460px, 100%);
+  display: flex; flex-direction: column; gap: .9rem;
+  max-height: 85vh; overflow-y: auto;
+}
+.clipboard-card h3 { font-family: 'EB Garamond', serif; font-size: 1.3rem; color: var(--cream); }
+.clip-hint { font-size: .78rem; color: var(--muted); line-height: 1.4; }
+#clip-textarea {
+  width: 100%; min-height: 130px; resize: vertical;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  border-radius: 7px; color: var(--cream); padding: .6rem .75rem;
+  font-size: .82rem; font-family: 'Nunito', sans-serif; line-height: 1.5; outline: none;
+}
+#clip-textarea:focus { border-color: var(--violet); }
+#clip-textarea::placeholder { color: var(--muted); }
+.clip-actions { display: flex; justify-content: flex-end; gap: .6rem; align-items: center; }
+.clip-actions button {
+  font-family: 'Nunito', sans-serif; font-size: .8rem; padding: .4rem .9rem;
+  border-radius: 6px; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface); color: var(--muted); transition: color .15s;
+}
+.clip-actions button:hover { color: var(--cream); }
+.clip-parse-btn, .clip-add-btn {
+  background: var(--orange) !important; border-color: var(--orange) !important;
+  color: #fff !important;
+}
+.clip-add-btn:disabled { opacity: .5; cursor: default; }
+.clip-count { font-size: .75rem; color: var(--muted); margin-right: auto; }
+.clip-list { display: flex; flex-direction: column; gap: .35rem; max-height: 320px; overflow-y: auto; }
+.clip-item {
+  display: flex; align-items: center; gap: .45rem;
+  padding: .3rem .45rem; border-radius: 4px;
+  border: 1px solid var(--border); background: rgba(255,255,255,.02);
+  font-size: .82rem;
+}
+.clip-item input[type="checkbox"] { cursor: pointer; accent-color: var(--orange); flex-shrink: 0; }
+.clip-item-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cream); }
+.clip-type-sel, .clip-cat-sel {
+  background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+  border-radius: 4px; font-size: .7rem; padding: .1rem .25rem;
+  cursor: pointer; flex-shrink: 0;
+}
+.clip-type-sel:focus, .clip-cat-sel:focus { outline: none; border-color: var(--orange); }
+
 /* Toggle Film/Série dans modal ajout global */
 .ga-type-toggle {
   display: flex; gap: 0; border: 1px solid var(--border); border-radius: 7px; overflow: hidden;
@@ -449,9 +501,12 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   padding: 2rem; text-align: center; color: var(--muted); font-size: .85rem;
 }
 
-/* ===== Bouton + modal ajout global ===== */
-.global-add-btn {
+/* ===== Boutons header gauche + modal ajout global ===== */
+.header-btns-left {
   position: absolute; top: 1.2rem; left: 1rem;
+  display: flex; gap: .4rem; align-items: center;
+}
+.global-add-btn {
   font-size: .7rem; color: var(--muted); background: var(--surface);
   border: 1px solid var(--border); border-radius: 6px;
   padding: .3rem .6rem; cursor: pointer; letter-spacing: .04em;
@@ -543,6 +598,29 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   </div>
 </div>
 
+<!-- Modal coller depuis notes -->
+<div class="clipboard-modal" id="clip-modal" onclick="if(event.target===this)closeClipModal()">
+  <div class="clipboard-card">
+    <h3>Coller depuis mes notes</h3>
+    <div id="clip-step-paste">
+      <p class="clip-hint" id="clip-hint">Colle ta liste ci-dessous — un titre par ligne. Bullets, numéros et années sont ignorés automatiquement.</p>
+      <textarea id="clip-textarea" placeholder="- Dune&#10;- The Bear&#10;1. Parasite&#10;• Severance (2022)&#10;..."></textarea>
+      <div class="clip-actions">
+        <button onclick="closeClipModal()">Annuler</button>
+        <button class="clip-parse-btn" onclick="clipParse()">Analyser →</button>
+      </div>
+    </div>
+    <div id="clip-step-review" style="display:none">
+      <div class="clip-list" id="clip-list"></div>
+      <div class="clip-actions">
+        <span class="clip-count" id="clip-count"></span>
+        <button onclick="clipBack()">← Retour</button>
+        <button class="clip-add-btn" id="clip-add-btn" onclick="clipAdd()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal ajout global avec IA (film ou série) -->
 <div class="global-add-modal" id="global-add-modal" onclick="if(event.target===this)closeGlobalAdd()">
   <div class="global-add-card">
@@ -593,7 +671,10 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 
 <div id="films-tab" class="tab-content active">
   <div class="wl-header">
-    <button class="global-add-btn" onclick="openGlobalAdd()">＋ Ajouter un film</button>
+    <div class="header-btns-left">
+      <button class="global-add-btn" onclick="openGlobalAdd()">＋ Ajouter un film</button>
+      <button class="global-add-btn" onclick="openClipModal()">📋 Coller</button>
+    </div>
     <button class="api-key-btn" id="api-key-btn" onclick="openApiModal()">⚙ Clé API</button>
     <h1>Ma Watchlist</h1>
     <p>Cinéma &middot; Collection personnelle</p>
@@ -609,7 +690,10 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 
 <div id="series-tab" class="tab-content">
   <div class="series-header">
-    <button class="global-add-btn" onclick="openGlobalAdd('serie')">＋ Ajouter une série</button>
+    <div class="header-btns-left">
+      <button class="global-add-btn" onclick="openGlobalAdd('serie')">＋ Ajouter une série</button>
+      <button class="global-add-btn" onclick="openClipModal()">📋 Coller</button>
+    </div>
     <h2>Mes Séries</h2>
     <p>Séries &middot; Collection personnelle</p>
   </div>
@@ -1136,13 +1220,13 @@ function renderFilmRow(film, catId, isSugg) {
 
   return `<div class="${cls}" data-cat="${catId}" data-title="${esc(film.t)}">
     <button class="seen-btn" data-action="toggle-seen" data-cat="${catId}" data-title="${esc(film.t)}">${seen ? '✓' : ''}</button>
-    ${ratingBtns}
     <div class="film-info">
       <button class="film-title-btn film-title${isSugg && film.type === 'must' ? ' classic' : ''}" data-action="show-film-info" data-cat="${catId}" data-title="${esc(film.t)}">${esc(film.t)}</button>
       ${film.d ? `<div class="film-director">${esc(film.d)}</div>` : ''}
       ${note ? `<div class="note-preview">${esc(note)}</div>` : ''}
     </div>
     <div class="film-meta">
+      ${ratingBtns}
       ${film.y ? `<span class="film-year">${film.y}</span>` : ''}
       ${badge}
       ${actions}
@@ -1228,13 +1312,13 @@ function renderSeriesRow(serie, sectionId, isSugg = false) {
 
   return `<div class="${cls}">
     ${isSugg ? '' : `<button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>`}
-    ${isSugg ? '' : ratingBtns}
     <div class="film-info">
       <button class="film-title-btn serie-title" data-action="show-film-info" data-section="${sectionId}" data-title="${esc(serie.t)}">${esc(serie.t)}</button>
       ${isEncours ? `<div class="serie-ep">Saison ${prog.season} · Épisode ${prog.ep}</div>` : ''}
       ${note ? `<div class="note-preview">${esc(note)}</div>` : ''}
     </div>
     <div class="film-meta">
+      ${isSugg ? '' : ratingBtns}
       ${serie.y ? `<span class="serie-year">${serie.y}</span>` : ''}
       ${isEncours ? `<div class="ep-tracker">
         <div class="ep-group">
@@ -1943,6 +2027,124 @@ document.getElementById('pwa-install').addEventListener('click', () => {
 document.getElementById('pwa-dismiss').addEventListener('click', () => {
   document.getElementById('pwa-banner').hidden = true;
 });
+
+/* ===================== COLLER DEPUIS NOTES ===================== */
+let clipItems = [];
+
+function openClipModal() {
+  clipItems = [];
+  const ta = document.getElementById('clip-textarea');
+  ta.value = '';
+  document.getElementById('clip-step-paste').style.display = '';
+  document.getElementById('clip-step-review').style.display = 'none';
+  const hint = document.getElementById('clip-hint');
+  hint.textContent = 'Colle ta liste ci-dessous — un titre par ligne. Bullets, numéros et années sont ignorés automatiquement.';
+  hint.style.color = '';
+  document.getElementById('clip-modal').classList.add('open');
+  navigator.clipboard.readText().then(t => { if (t.trim()) ta.value = t; }).catch(() => {});
+  setTimeout(() => ta.focus(), 50);
+}
+function closeClipModal() {
+  document.getElementById('clip-modal').classList.remove('open');
+}
+function parseNotesText(raw) {
+  return raw.split('\n')
+    .map(l => l
+      .replace(/^[\s\u2022\u00b7\u2013\u2014\-\*#>◦▪▸•]+/, '')
+      .replace(/^\d+[\.\)\:\s]+/, '')
+      .replace(/\s+\(\d{4}\).*$/, '')
+      .replace(/\s+[–-]\s+.*$/, '')
+      .trim()
+    )
+    .filter(t => t.length >= 2 && t.length <= 100)
+    .filter((t, i, a) => a.findIndex(x => x.toLowerCase() === t.toLowerCase()) === i);
+}
+function clipParse() {
+  const raw = document.getElementById('clip-textarea').value;
+  const titles = parseNotesText(raw);
+  if (!titles.length) {
+    const hint = document.getElementById('clip-hint');
+    hint.textContent = 'Aucun titre détecté — écris un titre par ligne.';
+    hint.style.color = 'var(--orange)';
+    return;
+  }
+  const seriesSet = new Set([
+    ...Object.values(SERIES_DEFAULT).flat().map(s => s.t.toLowerCase()),
+    ...SERIES_SECTIONS.flatMap(s => (s.suggestions || []).map(x => x.t.toLowerCase()))
+  ]);
+  const defaultCat = CATEGORIES[0].id;
+  const defaultSec = SERIES_SECTIONS.find(s => s.id !== 'encours')?.id || 'acommencer';
+  clipItems = titles.map(t => ({
+    title: t,
+    type: seriesSet.has(t.toLowerCase()) ? 'serie' : 'film',
+    cat: seriesSet.has(t.toLowerCase()) ? defaultSec : defaultCat,
+    checked: true
+  }));
+  renderClipList();
+  document.getElementById('clip-step-paste').style.display = 'none';
+  document.getElementById('clip-step-review').style.display = '';
+  updateClipAddBtn();
+}
+function renderClipList() {
+  const catOpts = CATEGORIES.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+  const secOpts = SERIES_SECTIONS.filter(s => s.id !== 'encours').map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+  document.getElementById('clip-list').innerHTML = clipItems.map((item, i) => {
+    const baseOpts = item.type === 'film' ? catOpts : secOpts;
+    const opts = baseOpts.replace(`value="${item.cat}"`, `value="${item.cat}" selected`);
+    return `<div class="clip-item">
+      <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="clipItems[${i}].checked=this.checked;updateClipAddBtn()">
+      <span class="clip-item-title" title="${esc(item.title)}">${esc(item.title)}</span>
+      <select class="clip-type-sel" onchange="clipSetType(${i},this.value)">
+        <option value="film"${item.type==='film'?' selected':''}>Film</option>
+        <option value="serie"${item.type==='serie'?' selected':''}>Série</option>
+      </select>
+      <select class="clip-cat-sel" onchange="clipItems[${i}].cat=this.value">${opts}</select>
+    </div>`;
+  }).join('') || '<p style="font-size:.82rem;color:var(--muted);text-align:center;padding:.8rem">Aucun titre détecté.</p>';
+}
+function clipSetType(i, val) {
+  clipItems[i].type = val;
+  clipItems[i].cat = val === 'film' ? CATEGORIES[0].id : (SERIES_SECTIONS.find(s => s.id !== 'encours')?.id || 'acommencer');
+  renderClipList();
+  updateClipAddBtn();
+}
+function updateClipAddBtn() {
+  const n = clipItems.filter(x => x.checked).length;
+  document.getElementById('clip-add-btn').textContent = `Ajouter ${n} élément${n > 1 ? 's' : ''}`;
+  document.getElementById('clip-add-btn').disabled = n === 0;
+  document.getElementById('clip-count').textContent = `${clipItems.length} titre${clipItems.length > 1 ? 's' : ''} détecté${clipItems.length > 1 ? 's' : ''}`;
+}
+function clipBack() {
+  document.getElementById('clip-step-review').style.display = 'none';
+  document.getElementById('clip-step-paste').style.display = '';
+}
+function clipAdd() {
+  const toAdd = clipItems.filter(x => x.checked);
+  toAdd.forEach(item => {
+    if (item.type === 'film') {
+      if (!getFilms(item.cat).some(f => f.t.toLowerCase() === item.title.toLowerCase())) {
+        if (!S.extra[item.cat]) S.extra[item.cat] = [];
+        S.extra[item.cat].push({ t: item.title });
+      }
+    } else {
+      if (!S.series[item.cat]) S.series[item.cat] = [];
+      if (!S.series[item.cat].some(s => s.t.toLowerCase() === item.title.toLowerCase())) {
+        S.series[item.cat].push({ t: item.title, done: false });
+      }
+    }
+  });
+  save('wl-extra-v4', S.extra);
+  save('wl-series-v2', S.series);
+  const filmCats = [...new Set(toAdd.filter(x => x.type === 'film').map(x => x.cat))];
+  const serieSecs = [...new Set(toAdd.filter(x => x.type === 'serie').map(x => x.cat))];
+  filmCats.forEach(c => { openCats.add(c); rerenderCategory(c); });
+  serieSecs.forEach(s => rerenderSection(s));
+  closeClipModal();
+  if (serieSecs.length > 0 && filmCats.length === 0) {
+    const btn = document.querySelector('[data-tab="series"]');
+    if (btn && !document.getElementById('series-tab').classList.contains('active')) btn.click();
+  }
+}
 
 /* ===================== INIT ===================== */
 initSeriesState();
