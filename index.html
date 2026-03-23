@@ -178,7 +178,8 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   display: flex; align-items: center; justify-content: center;
   font-size: .65rem; transition: all .2s;
 }
-.film-item.seen .seen-btn {
+.film-item.seen .seen-btn,
+.serie-item.done .seen-btn {
   background: var(--green); border-color: var(--green); color: #fff;
 }
 
@@ -422,6 +423,65 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 }
 .clip-type-sel:focus, .clip-cat-sel:focus { outline: none; border-color: var(--orange); }
 
+/* ===== Modal Letterboxd ===== */
+.lbd-modal {
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center; padding: 1rem;
+}
+.lbd-modal.open { display: flex; }
+.lbd-card {
+  background: #1a1828; border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.4rem; width: min(440px, 100%);
+  display: flex; flex-direction: column; gap: 1rem;
+  max-height: 88vh; overflow-y: auto;
+}
+.lbd-card h3 { font-family: 'EB Garamond', serif; font-size: 1.3rem; color: var(--cream); }
+.lbd-instructions { font-size: .78rem; color: var(--muted); line-height: 1.55; }
+.lbd-instructions code {
+  background: rgba(255,255,255,.08); border-radius: 3px;
+  padding: .05rem .35rem; color: var(--cream); font-size: .77rem;
+}
+.lbd-file-zone {
+  border: 1.5px dashed var(--border); border-radius: 8px;
+  padding: 1.4rem; text-align: center; cursor: pointer;
+  color: var(--muted); font-size: .82rem;
+  transition: border-color .15s, color .15s;
+}
+.lbd-file-zone:hover { border-color: var(--orange); color: var(--cream); }
+.lbd-file-name { font-size: .75rem; color: var(--orange); margin-top: .4rem; }
+.lbd-stats {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: .45rem;
+}
+.lbd-stat {
+  background: rgba(255,255,255,.04); border: 1px solid var(--border);
+  border-radius: 6px; padding: .5rem .7rem;
+}
+.lbd-stat-label { font-size: .67rem; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.lbd-stat-value { font-size: 1.1rem; color: var(--cream); font-weight: 600; margin-top: .1rem; }
+.lbd-preview { font-size: .75rem; color: var(--muted); line-height: 1.5; }
+.lbd-preview strong { color: var(--cream); font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; }
+.lbd-profile-active {
+  font-size: .73rem; color: var(--green); display: flex; align-items: center;
+  gap: .3rem; padding: .3rem .5rem; border-radius: 4px;
+  background: rgba(107,153,107,.12); border: 1px solid rgba(107,153,107,.25);
+}
+.lbd-actions { display: flex; justify-content: flex-end; gap: .6rem; }
+.lbd-actions button {
+  font-family: 'Nunito', sans-serif; font-size: .8rem; padding: .4rem .9rem;
+  border-radius: 6px; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface); color: var(--muted); transition: color .15s;
+}
+.lbd-actions button:hover { color: var(--cream); }
+.lbd-save-btn { background: var(--orange) !important; border-color: var(--orange) !important; color: #fff !important; }
+.lbd-badge {
+  font-size: .62rem; color: var(--green); background: rgba(107,153,107,.15);
+  border: 1px solid rgba(107,153,107,.3); border-radius: 3px;
+  padding: .05rem .3rem; margin-left: .3rem; vertical-align: middle;
+  letter-spacing: .04em;
+}
+
 /* Toggle Film/Série dans modal ajout global */
 .ga-type-toggle {
   display: flex; gap: 0; border: 1px solid var(--border); border-radius: 7px; overflow: hidden;
@@ -598,6 +658,33 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
   </div>
 </div>
 
+<!-- Modal Letterboxd -->
+<div class="lbd-modal" id="lbd-modal" onclick="if(event.target===this)closeLbdModal()">
+  <div class="lbd-card">
+    <h3>Importer Letterboxd</h3>
+    <div id="lbd-step-upload">
+      <p class="lbd-instructions">
+        Sur Letterboxd : <strong>Paramètres → Importer &amp; Exporter → Exporter tes données</strong>.<br>
+        Importe le fichier <code>ratings.csv</code> (ou <code>watched.csv</code>) du ZIP.
+      </p>
+      <div class="lbd-file-zone" onclick="document.getElementById('lbd-file-input').click()">
+        <div>📂 Sélectionner le fichier CSV</div>
+        <div class="lbd-file-name" id="lbd-file-name"></div>
+        <input type="file" id="lbd-file-input" accept=".csv" style="display:none" onchange="lbdFileSelected(this)">
+      </div>
+      <div id="lbd-profile-current"></div>
+    </div>
+    <div id="lbd-step-stats" style="display:none">
+      <div class="lbd-stats" id="lbd-stats-grid"></div>
+      <div class="lbd-preview" id="lbd-preview"></div>
+      <div class="lbd-actions">
+        <button onclick="lbdBack()">← Retour</button>
+        <button class="lbd-save-btn" onclick="lbdConfirm()">Enregistrer le profil IA</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal coller depuis notes -->
 <div class="clipboard-modal" id="clip-modal" onclick="if(event.target===this)closeClipModal()">
   <div class="clipboard-card">
@@ -674,6 +761,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
     <div class="header-btns-left">
       <button class="global-add-btn" onclick="openGlobalAdd()">＋ Ajouter un film</button>
       <button class="global-add-btn" onclick="openClipModal()">📋 Coller</button>
+      <button class="global-add-btn" id="lbd-btn-films" onclick="openLbdModal()">⬆ Letterboxd</button>
     </div>
     <button class="api-key-btn" id="api-key-btn" onclick="openApiModal()">⚙ Clé API</button>
     <h1>Ma Watchlist</h1>
@@ -693,6 +781,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
     <div class="header-btns-left">
       <button class="global-add-btn" onclick="openGlobalAdd('serie')">＋ Ajouter une série</button>
       <button class="global-add-btn" onclick="openClipModal()">📋 Coller</button>
+      <button class="global-add-btn" id="lbd-btn-series" onclick="openLbdModal()">⬆ Letterboxd</button>
     </div>
     <h2>Mes Séries</h2>
     <p>Séries &middot; Collection personnelle</p>
@@ -1072,7 +1161,8 @@ const S = {
   seriesProgress: load('wl-series-progress-v1', {}),
   ratings:    load('wl-ratings-v1', {}),
   notes:      load('wl-notes-v1', {}),
-  suggSeries: load('wl-sugg-series-v1', {})
+  suggSeries: load('wl-sugg-series-v1', {}),
+  lbdProfile: load('wl-lbd-profile', null)
 };
 
 // Track which categories are open
@@ -1318,7 +1408,7 @@ function renderSeriesRow(serie, sectionId, isSugg = false) {
       ${note ? `<div class="note-preview">${esc(note)}</div>` : ''}
     </div>
     <div class="film-meta">
-      ${isSugg ? '' : ratingBtns}
+      ${ratingBtns}
       ${serie.y ? `<span class="serie-year">${serie.y}</span>` : ''}
       ${isEncours ? `<div class="ep-tracker">
         <div class="ep-group">
