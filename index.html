@@ -160,17 +160,18 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 /* Film row */
 .film-item {
   display: grid;
-  grid-template-columns: 28px 1fr auto;
-  align-items: start;
+  grid-template-columns: 28px 1fr auto auto;
+  align-items: center;
   gap: .5rem;
   padding: .45rem 1rem;
   border-top: 1px solid var(--border);
   transition: background .15s;
-  position: relative;
 }
 .film-item:hover { background: rgba(224,120,56,0.06); }
 .film-item.highlighted { border-left: 3px solid var(--orange); padding-left: calc(1rem - 3px); }
 .film-item.seen { opacity: .55; }
+/* Suggestions films : rating toujours visible, pas de seen */
+.film-item.is-sugg .rating-btns { display: flex; }
 
 .seen-btn {
   width: 22px; height: 22px; border-radius: 50%;
@@ -221,14 +222,12 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 }
 
 .actions {
-  display: flex; align-items: center; gap: .45rem;
+  display: flex; align-items: center; gap: .35rem;
   opacity: 0; transition: opacity .15s;
-  position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
-  background: linear-gradient(to left, var(--surface) 70%, transparent);
-  padding-left: 1.5rem;
+  visibility: hidden; flex-shrink: 0;
 }
 .film-item:hover .actions,
-.serie-item:hover .actions { opacity: 1; }
+.serie-item:hover .actions { opacity: 1; visibility: visible; }
 .act-btn {
   width: 28px; height: 28px; border-radius: 5px;
   display: flex; align-items: center; justify-content: center;
@@ -291,20 +290,17 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 
 .serie-item {
   display: grid;
-  grid-template-columns: 28px 1fr auto;
-  align-items: start;
+  grid-template-columns: 28px 1fr auto auto;
+  align-items: center;
   gap: .5rem;
   padding: .45rem 1rem;
   border-top: 1px solid var(--border);
   transition: background .15s;
-  position: relative;
 }
 .serie-item:hover { background: rgba(224,120,56,0.06); }
 .serie-item.done { opacity: .5; }
 .serie-item.done .rating-btns { display: flex; }
 .serie-item.highlighted { border-left: 3px solid var(--orange); padding-left: calc(1rem - 3px); }
-/* Suggestions séries : même grid que les séries normales */
-.serie-item.serie-sugg { grid-template-columns: 28px 1fr auto; }
 
 .serie-title { font-family: 'EB Garamond', serif; font-style: italic; font-size: 1rem; }
 .serie-year { font-size: .72rem; color: var(--muted); }
@@ -328,6 +324,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 .series-header { text-align: center; padding: 1.5rem 0 1.5rem; position: relative; }
 .series-header h2 { font-family: 'EB Garamond', serif; font-size: 1.8rem; }
 .series-header p { color: var(--muted); font-size: .85rem; margin-top: .3rem; }
+.series-header .stats { margin-top: .75rem; }
 
 /* Notes écrites */
 .note-preview {
@@ -563,8 +560,9 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
 
 /* ===== Boutons header gauche + modal ajout global ===== */
 .header-btns-left {
-  position: absolute; top: 1.2rem; left: 1rem;
-  display: flex; gap: .4rem; align-items: center;
+  position: absolute; top: .8rem; left: 1rem;
+  display: flex; gap: .35rem; align-items: flex-start;
+  flex-wrap: wrap; max-width: calc(50% - .5rem);
 }
 .global-add-btn {
   font-size: .7rem; color: var(--muted); background: var(--surface);
@@ -785,6 +783,11 @@ button { cursor: pointer; border: none; background: none; color: inherit; font-f
     </div>
     <h2>Mes Séries</h2>
     <p>Séries &middot; Collection personnelle</p>
+    <div class="stats">
+      <div class="stat"><strong id="stat-series-total">0</strong> séries</div>
+      <div class="stat"><strong id="stat-series-done">0</strong> vues</div>
+      <div class="stat"><strong id="stat-series-encours">0</strong> en cours</div>
+    </div>
   </div>
   <div id="series-container"></div>
 </div>
@@ -1274,26 +1277,38 @@ function renderFilmRow(film, catId, isSugg) {
   const must = !!S.must[k];
   const rating = S.ratings[k] || null;
   const note = S.notes[k] || '';
+
+  // Les suggestions n'héritent pas de l'état "vu" visuellement
   const cls = [
     'film-item',
-    seen ? 'seen' : '',
+    isSugg ? 'is-sugg' : (seen ? 'seen' : ''),
     hl ? 'highlighted' : ''
   ].filter(Boolean).join(' ');
 
-  const badge = must
-    ? `<span class="badge badge-must">incontournable</span>`
-    : '';
-
+  const badge = must ? `<span class="badge badge-must">incontournable</span>` : '';
   const hlCls = hl ? ' hl-active' : '';
   const mustCls = must ? ' must-active' : '';
   const noteCls = note ? ' note-active' : '';
+
+  // ▲/▼ : sur suggestions = pertinence IA ; sur films vus = avis perso
+  const ratingTitle = isSugg
+    ? ['Bonne suggestion pour l\'IA', 'Pas pertinent pour l\'IA']
+    : ['J\'ai aimé', 'Pas aimé'];
+  const ratingBtns = `<div class="rating-btns">
+    <button class="rating-btn${rating === 'liked' ? ' liked-active' : ''}" data-action="toggle-rating" data-cat="${catId}" data-title="${esc(film.t)}" data-value="liked" title="${ratingTitle[0]}">▲</button>
+    <button class="rating-btn${rating === 'disliked' ? ' disliked-active' : ''}" data-action="toggle-rating" data-cat="${catId}" data-title="${esc(film.t)}" data-value="disliked" title="${ratingTitle[1]}">▼</button>
+  </div>`;
+
+  const seenOrSpacer = isSugg
+    ? `<div style="width:22px;height:22px;flex-shrink:0"></div>`
+    : `<button class="seen-btn" data-action="toggle-seen" data-cat="${catId}" data-title="${esc(film.t)}">${seen ? '✓' : ''}</button>`;
 
   const actions = isSugg
     ? `<div class="actions">
         <button class="act-btn${hlCls}" data-action="toggle-hl" data-cat="${catId}" data-title="${esc(film.t)}" title="Mettre en avant">★</button>
         <button class="act-btn${noteCls}" data-action="show-note" data-cat="${catId}" data-title="${esc(film.t)}" title="Note">✎</button>
-        <button class="act-btn" data-action="promote-sugg" data-cat="${catId}" data-title="${esc(film.t)}" data-dir="${esc(film.d||'')}" data-year="${film.y||''}" title="Promouvoir">＋</button>
-        <button class="act-btn" data-action="replace-sugg" data-cat="${catId}" data-title="${esc(film.t)}" title="Remplacer">↻</button>
+        <button class="act-btn" data-action="promote-sugg" data-cat="${catId}" data-title="${esc(film.t)}" data-dir="${esc(film.d||'')}" data-year="${film.y||''}" title="Ajouter à ma liste">＋</button>
+        <button class="act-btn" data-action="replace-sugg" data-cat="${catId}" data-title="${esc(film.t)}" title="Remplacer par IA">↻</button>
         <button class="act-btn${mustCls}" data-action="toggle-must" data-cat="${catId}" data-title="${esc(film.t)}" title="Incontournable">◆</button>
       </div>`
     : `<div class="actions">
@@ -1303,13 +1318,8 @@ function renderFilmRow(film, catId, isSugg) {
         <button class="act-btn del" data-action="delete-film" data-cat="${catId}" data-title="${esc(film.t)}" title="Supprimer">✕</button>
       </div>`;
 
-  const ratingBtns = `<div class="rating-btns">
-    <button class="rating-btn${rating === 'liked' ? ' liked-active' : ''}" data-action="toggle-rating" data-cat="${catId}" data-title="${esc(film.t)}" data-value="liked" title="J'ai aimé">▲</button>
-    <button class="rating-btn${rating === 'disliked' ? ' disliked-active' : ''}" data-action="toggle-rating" data-cat="${catId}" data-title="${esc(film.t)}" data-value="disliked" title="Pas aimé">▼</button>
-  </div>`;
-
   return `<div class="${cls}" data-cat="${catId}" data-title="${esc(film.t)}">
-    <button class="seen-btn" data-action="toggle-seen" data-cat="${catId}" data-title="${esc(film.t)}">${seen ? '✓' : ''}</button>
+    ${seenOrSpacer}
     <div class="film-info">
       <button class="film-title-btn film-title${isSugg && film.type === 'must' ? ' classic' : ''}" data-action="show-film-info" data-cat="${catId}" data-title="${esc(film.t)}">${esc(film.t)}</button>
       ${film.d ? `<div class="film-director">${esc(film.d)}</div>` : ''}
@@ -1319,8 +1329,8 @@ function renderFilmRow(film, catId, isSugg) {
       ${ratingBtns}
       ${film.y ? `<span class="film-year">${film.y}</span>` : ''}
       ${badge}
-      ${actions}
     </div>
+    ${actions}
   </div>`;
 }
 
@@ -1400,8 +1410,29 @@ function renderSeriesRow(serie, sectionId, isSugg = false) {
     <button class="rating-btn${rating === 'disliked' ? ' disliked-active' : ''}" data-action="toggle-rating" data-section="${sectionId}" data-title="${esc(serie.t)}" data-value="disliked" title="Pas aimé">▼</button>
   </div>`;
 
+  const seenOrSpacer = isSugg
+    ? `<div style="width:22px;height:22px;flex-shrink:0"></div>`
+    : `<button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>`;
+
+  const actions = isSugg
+    ? `<div class="actions">
+        <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
+        <button class="act-btn${noteCls}" data-action="show-note" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Note">✎</button>
+        <button class="act-btn" data-action="promote-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" data-year="${serie.y||''}" title="Ajouter à ma liste">＋</button>
+        <button class="act-btn" data-action="replace-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remplacer par IA">↻</button>
+        <button class="act-btn del" data-action="delete-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
+      </div>`
+    : `<div class="actions">
+        <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
+        <button class="act-btn${noteCls}" data-action="show-note" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Note">✎</button>
+        <button class="act-btn${mustCls}" data-action="toggle-serie-must" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Incontournable">◆</button>
+        ${canMove ? `<button class="act-btn" data-action="move-encours" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Déplacer en cours">▶</button>` : ''}
+        ${isEncours ? `<button class="act-btn back" data-action="move-back" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remettre dans la liste">↩</button>` : ''}
+        <button class="act-btn del" data-action="delete-serie" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
+      </div>`;
+
   return `<div class="${cls}">
-    <button class="seen-btn" data-action="toggle-serie-done" data-section="${sectionId}" data-title="${esc(serie.t)}">${done ? '✓' : ''}</button>
+    ${seenOrSpacer}
     <div class="film-info">
       <button class="film-title-btn serie-title" data-action="show-film-info" data-section="${sectionId}" data-title="${esc(serie.t)}">${esc(serie.t)}</button>
       ${isEncours ? `<div class="serie-ep">Saison ${prog.season} · Épisode ${prog.ep}</div>` : ''}
@@ -1423,21 +1454,8 @@ function renderSeriesRow(serie, sectionId, isSugg = false) {
         </div>
       </div>` : ''}
       ${badge}
-      ${isSugg ? `<div class="actions">
-        <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
-        <button class="act-btn${noteCls}" data-action="show-note" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Note">✎</button>
-        <button class="act-btn" data-action="promote-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" data-year="${serie.y||''}" title="Ajouter à ma liste">＋</button>
-        <button class="act-btn" data-action="replace-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remplacer par IA">↻</button>
-        <button class="act-btn del" data-action="delete-serie-sugg" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
-      </div>` : `<div class="actions">
-        <button class="act-btn${hl ? ' hl-active' : ''}" data-action="toggle-serie-hl" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Mettre en avant">★</button>
-        <button class="act-btn${noteCls}" data-action="show-note" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Note">✎</button>
-        <button class="act-btn${mustCls}" data-action="toggle-serie-must" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Incontournable">◆</button>
-        ${canMove ? `<button class="act-btn" data-action="move-encours" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Déplacer en cours">▶</button>` : ''}
-        ${isEncours ? `<button class="act-btn back" data-action="move-back" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Remettre dans la liste">↩</button>` : ''}
-        <button class="act-btn del" data-action="delete-serie" data-section="${sectionId}" data-title="${esc(serie.t)}" title="Supprimer">✕</button>
-      </div>`}
     </div>
+    ${actions}
   </div>`;
 }
 
@@ -1460,9 +1478,26 @@ function renderSeriesSection(sec) {
   </div>`;
 }
 
+function updateSeriesStats() {
+  let total = 0, done = 0;
+  SERIES_SECTIONS.forEach(sec => {
+    const list = S.series[sec.id] || getSeriesList(sec.id);
+    total += list.length;
+    done += list.filter(s => s.done).length;
+  });
+  const encours = (S.series['encours'] || []).length;
+  const el = document.getElementById('stat-series-total');
+  if (el) el.textContent = total;
+  const ed = document.getElementById('stat-series-done');
+  if (ed) ed.textContent = done;
+  const ee = document.getElementById('stat-series-encours');
+  if (ee) ee.textContent = encours;
+}
+
 function renderSeriesTab() {
   const container = document.getElementById('series-container');
   container.innerHTML = SERIES_SECTIONS.map(renderSeriesSection).join('');
+  updateSeriesStats();
 }
 
 function rerenderSection(sectionId) {
@@ -1471,6 +1506,7 @@ function rerenderSection(sectionId) {
   const el = document.getElementById('sec-' + sectionId);
   if (!el) return;
   el.outerHTML = renderSeriesSection(sec);
+  updateSeriesStats();
 }
 
 /* ===================== API KEY ===================== */
