@@ -1212,7 +1212,7 @@ async function callAIForSerie(sectionId, replacedTitle) {
   const allTitles = [...list, ...allSuggs].map(s => s.t).join(', ');
   const likedTitles = [...list, ...allSuggs].filter(s => S.ratings[key(sectionId, s.t)] === 'liked').map(s => s.t);
   const likedLine = likedTitles.length ? `Séries appréciées: ${likedTitles.join(', ')}\n` : '';
-  const prompt = `[PROFIL UTILISATEUR] Séries de qualité, drames, thrillers, SF, animation exigeante, humour absurde, cinéma sériel ambitieux (HBO, A24, FX, BBC). Préfère la profondeur narrative, l'originalité formelle, les performances.
+  const prompt = `${getLbdProfileLine()}[PROFIL UTILISATEUR] Séries de qualité, drames, thrillers, SF, animation exigeante, humour absurde, cinéma sériel ambitieux (HBO, A24, FX, BBC). Préfère la profondeur narrative, l'originalité formelle, les performances.
 
 Section: ${sec.label}
 Séries déjà présentes: ${allTitles}
@@ -1517,7 +1517,7 @@ async function callAI(catId, replacedTitle) {
   const dislikedLine = dislikedAll.length
     ? `Films que l'utilisateur n'a PAS aimés (éviter le style): ${dislikedAll.join(', ')}\n` : '';
 
-  const prompt = `[PROFIL UTILISATEUR]
+  const prompt = `${getLbdProfileLine()}[PROFIL UTILISATEUR]
 L'utilisateur a une watchlist cinéphile très éclectique. Drames d'auteur intimes, thrillers/crime (Scorsese, Coen, Fincher, PTA), horreur atmosphérique, cinéma psychologique/WTF (Lynch, Lanthimos), SF contemplative (Tarkovski), animation d'auteur exigeante. Cinéma européen, coréen, japonais. Préfère atmosphère, profondeur émotionnelle, ambition formelle.
 
 Catégorie: ${cat.label}
@@ -2128,6 +2128,142 @@ document.getElementById('pwa-dismiss').addEventListener('click', () => {
   document.getElementById('pwa-banner').hidden = true;
 });
 
+/* ===================== LETTERBOXD ===================== */
+function parseCSVLine(line) {
+  const cols = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if (c === ',' && !inQ) { cols.push(cur); cur = ''; }
+    else cur += c;
+  }
+  cols.push(cur);
+  return cols;
+}
+
+function parseLbdCSV(text) {
+  text = text.replace(/^\uFEFF/, ''); // BOM
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+  const header = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/"/g, ''));
+  const nameIdx = header.findIndex(h => h === 'name');
+  const yearIdx = header.findIndex(h => h === 'year');
+  const ratingIdx = header.findIndex(h => h === 'rating');
+  if (nameIdx < 0) return [];
+  const films = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    const name = cols[nameIdx]?.replace(/^"|"$/g, '').trim();
+    const year = yearIdx >= 0 ? (parseInt(cols[yearIdx]) || null) : null;
+    const rating = ratingIdx >= 0 ? (parseFloat(cols[ratingIdx]) || null) : null;
+    if (name) films.push({ name, year, rating });
+  }
+  return films;
+}
+
+function buildLbdProfile(films) {
+  const rated = films.filter(f => f.rating !== null);
+  const avgRating = rated.length
+    ? Math.round(rated.reduce((s, f) => s + f.rating, 0) / rated.length * 10) / 10
+    : null;
+  const sorted = [...rated].sort((a, b) => b.rating - a.rating);
+  return {
+    totalSeen: films.length,
+    avgRating,
+    topLiked:  sorted.filter(f => f.rating >= 4.0).slice(0, 30).map(f => f.name),
+    mildLiked: sorted.filter(f => f.rating >= 3.0 && f.rating < 4.0).slice(0, 20).map(f => f.name),
+    disliked:  sorted.filter(f => f.rating <= 2.0).reverse().slice(0, 15).map(f => f.name),
+    importDate: new Date().toISOString().slice(0, 10)
+  };
+}
+
+function getLbdProfileLine() {
+  const p = S.lbdProfile;
+  if (!p || !p.totalSeen) return '';
+  const parts = [`[GOÛTS LETTERBOXD — ${p.totalSeen} films vus${p.avgRating ? `, note moy. ${p.avgRating}/5` : ''}]`];
+  if (p.topLiked?.length)  parts.push(`Films adorés (≥4★): ${p.topLiked.slice(0, 20).join(', ')}`);
+  if (p.mildLiked?.length) parts.push(`Films appréciés (3-4★): ${p.mildLiked.slice(0, 10).join(', ')}`);
+  if (p.disliked?.length)  parts.push(`Films pas aimés (≤2★): ${p.disliked.slice(0, 10).join(', ')}`);
+  return parts.join('\n') + '\n\n';
+}
+
+let lbdParsedFilms = null;
+
+function openLbdModal() {
+  lbdParsedFilms = null;
+  document.getElementById('lbd-file-name').textContent = '';
+  document.getElementById('lbd-file-input').value = '';
+  document.getElementById('lbd-step-upload').style.display = '';
+  document.getElementById('lbd-step-stats').style.display = 'none';
+  // Show current profile status
+  const cur = document.getElementById('lbd-profile-current');
+  if (S.lbdProfile?.totalSeen) {
+    cur.innerHTML = `<div class="lbd-profile-active">✓ Profil actif — ${S.lbdProfile.totalSeen} films · importé le ${S.lbdProfile.importDate}</div>`;
+  } else {
+    cur.innerHTML = '';
+  }
+  document.getElementById('lbd-modal').classList.add('open');
+}
+
+function closeLbdModal() {
+  document.getElementById('lbd-modal').classList.remove('open');
+}
+
+function lbdFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('lbd-file-name').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const films = parseLbdCSV(e.target.result);
+    if (!films.length) {
+      document.getElementById('lbd-file-name').textContent = '⚠ Aucun film trouvé — vérifie que c\'est bien ratings.csv ou watched.csv';
+      return;
+    }
+    lbdParsedFilms = films;
+    const profile = buildLbdProfile(films);
+    // Stats grid
+    document.getElementById('lbd-stats-grid').innerHTML = `
+      <div class="lbd-stat"><div class="lbd-stat-label">Films importés</div><div class="lbd-stat-value">${profile.totalSeen}</div></div>
+      <div class="lbd-stat"><div class="lbd-stat-label">Note moyenne</div><div class="lbd-stat-value">${profile.avgRating ?? '—'}<span style="font-size:.7rem;color:var(--muted)">/5</span></div></div>
+      <div class="lbd-stat"><div class="lbd-stat-label">Adorés ≥ 4★</div><div class="lbd-stat-value">${profile.topLiked.length}</div></div>
+      <div class="lbd-stat"><div class="lbd-stat-label">Pas aimés ≤ 2★</div><div class="lbd-stat-value">${profile.disliked.length}</div></div>`;
+    // Preview
+    const liked = profile.topLiked.slice(0, 12).join(', ') || '—';
+    const disliked = profile.disliked.slice(0, 8).join(', ') || '—';
+    document.getElementById('lbd-preview').innerHTML =
+      `<strong>Adorés</strong><br>${liked}<br><br><strong>Pas aimés</strong><br>${disliked}`;
+    document.getElementById('lbd-step-upload').style.display = 'none';
+    document.getElementById('lbd-step-stats').style.display = '';
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function lbdBack() {
+  document.getElementById('lbd-step-stats').style.display = 'none';
+  document.getElementById('lbd-step-upload').style.display = '';
+}
+
+function lbdConfirm() {
+  if (!lbdParsedFilms) return;
+  S.lbdProfile = buildLbdProfile(lbdParsedFilms);
+  save('wl-lbd-profile', S.lbdProfile);
+  closeLbdModal();
+  // Update badge on both buttons
+  ['lbd-btn-films', 'lbd-btn-series'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.innerHTML = '⬆ Letterboxd<span class="lbd-badge">actif</span>';
+  });
+}
+
+function lbdInitBadge() {
+  if (!S.lbdProfile?.totalSeen) return;
+  ['lbd-btn-films', 'lbd-btn-series'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.innerHTML = '⬆ Letterboxd<span class="lbd-badge">actif</span>';
+  });
+}
+
 /* ===================== COLLER DEPUIS NOTES ===================== */
 let clipItems = [];
 
@@ -2247,6 +2383,7 @@ function clipAdd() {
 }
 
 /* ===================== INIT ===================== */
+lbdInitBadge();
 initSeriesState();
 renderFilmsTab();
 renderSeriesTab();
